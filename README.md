@@ -7,4 +7,4 @@ Tools to provide custom tabletop support.
 
 ### Planned Features:
 * Custom Group Turn Tracker / Combat Helper
-* Map assistant
+* Map assistant (minor code setup added)
