@@ -1,0 +1,11 @@
+name,health,armor_class,initiative,initiative_bonus,team
+Gandalf,100,16,10,2,Wizard
+Bilbo,100,16,11,1,Hobbit
+Frodo,100,16,11,2,Hobbit
+Aragorn,100,16,13,2,Fellowship
+Boromir,100,16,13,2,Fellowship
+Legolas,100,16,15,2,Elf
+Merry,10,16,11,2,Hobbit
+Pippin,10,16,11,2,Hobbit
+Celeborn,100,16,19,2,Elf
+Galadriel,100,16,20,3,Elf
