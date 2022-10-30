@@ -1,13 +1,13 @@
-name,health,armor_class,initiative,initiative_bonus,team
-Eddard "Ned" Stark,90,13,1,3,Stark
-Robert Baratheon,90,16,12,3,Stark
-Jaime Lannister,90,16,14,3,Lannister
-Catelyn Stark,90,16,3,3,Stark
-Cersei Lannister,90,16,4,3,Lannister
-Daenerys Targaryen,90,16,5,3,Targaryen
-Jorah Mormont,90,16,6,3,Targaryen
-Viserys Targaryen,90,16,7,3,Targaryen
-Jon Snow,90,16,10,3,Stark
-Robb Stark,90,16,10,3,Stark
-Sansa Stark,90,16,10,3,Stark
-Arya Stark,90,16,10,3,Stark
+name,health,armor_class,initiative,initiative_bonus,team,group,attributes
+Eddard "Ned" Stark,90,13,1,3,Stark,Winterfell,
+Robert Baratheon,90,16,12,3,Stark,Kings Landing,
+Jaime Lannister,90,16,14,3,Lannister,Kings Landing,
+Catelyn Stark,90,16,3,3,Stark,Winterfell,
+Cersei Lannister,90,16,4,3,Lannister,Kings Landing,
+Daenerys Targaryen,90,16,5,3,Targaryen,Nights Watch,
+Jorah Mormont,90,16,6,3,Targaryen,Nights Watch,
+Viserys Targaryen,90,16,7,3,Targaryen,Nights Watch,
+Jon Snow,90,16,10,3,Stark,Nights Watch,
+Robb Stark,90,16,10,3,Stark,Winterfell,
+Sansa Stark,90,16,10,3,Stark,Winterfell,
+Arya Stark,90,16,10,3,Stark,Winterfell,

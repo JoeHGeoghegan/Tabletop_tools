@@ -1,11 +1,11 @@
-name,health,armor_class,initiative,initiative_bonus,team
-Gandalf,100,16,10,2,Wizard
-Bilbo,100,16,11,1,Hobbit
-Frodo,100,16,11,2,Hobbit
-Aragorn,100,16,13,2,Fellowship
-Boromir,100,16,13,2,Fellowship
-Legolas,100,16,15,2,Elf
-Merry,10,16,11,2,Hobbit
-Pippin,10,16,11,2,Hobbit
-Celeborn,100,16,19,2,Elf
-Galadriel,100,16,20,3,Elf
+name,health,armor_class,initiative,initiative_bonus,team,group,attributes
+Gandalf,100,16,10,2,Wizard,Group 1,
+Bilbo,100,16,11,1,Hobbit,Group 2,
+Frodo,100,16,11,2,Hobbit,Group 1,
+Aragorn,100,16,13,2,Fellowship,Group 1,
+Boromir,100,16,13,2,Fellowship,Group 1,
+Legolas,100,16,15,2,Elf,Group 1,
+Merry,10,16,11,2,Hobbit,Group 1,
+Pippin,10,16,11,2,Hobbit,Group 1,
+Celeborn,100,16,19,2,Elf,Group 2,
+Galadriel,100,16,20,3,Elf,Group 2,

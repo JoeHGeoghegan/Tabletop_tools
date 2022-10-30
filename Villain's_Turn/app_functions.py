@@ -41,6 +41,9 @@ def auto_initiative(groups:pd.DataFrame):
 def groups_list(turn_track:pd.DataFrame):
     return(turn_track['group'].unique())
 
+def character_list(turn_track:pd.DataFrame):
+    return(turn_track['name'].unique())
+
 def df_match_slice(df:pd.DataFrame,column,match):
     return df[df[column]==match]
 
@@ -50,3 +53,16 @@ def df_set_match_slice(df:pd.DataFrame,column,match,new_data):
     df_copy = df.copy()
     df_copy.update(df_slice)
     return df_copy
+
+def change_group_assignment(groups:pd.DataFrame,new_value):
+    return
+
+def remove_group_assignments(groups:pd.DataFrame):
+    df = groups.copy()
+    df['group']=np.nan
+    return df
+
+def individual_groups(groups:pd.DataFrame):
+    df = groups.copy()
+    df['group']=df['name']
+    return df

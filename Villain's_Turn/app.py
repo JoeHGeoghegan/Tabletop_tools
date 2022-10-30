@@ -1,10 +1,9 @@
 # Imports
+from inspect import Attribute
 import streamlit as st
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass
-
-from LoopGroup import Character, GroupLoop
 
 ###############################
 ######## Steamlit Data ########
@@ -14,7 +13,7 @@ class datablock:
     turn_track:pd.DataFrame
 
     def __init__(self):
-        headers = ["name","health","armor_class","initiative","initiative_bonus","team","group"]
+        headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
         self.turn_track = pd.DataFrame(columns=headers)
 
 @st.cache(allow_output_mutation=True)
@@ -31,66 +30,103 @@ import app_functions as fx
 ################################
 ######## Streamlit Code ########
 ################################
-tabOverview, tabAddPerson, tabImportExport = st.tabs(["Overview", "Add Person", "Import/Export"])
-
+st.image(".\Images\Villains_turn_logo.png")
+tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
-    st.image(".\Images\Villains_turn_logo.png")
-
+    # Current Turn #TODO
+    # On Deck #TODO
+    # Combat expander #TODO
+    pass
+with tabSettings:
+    with st.expander("Turn Tracker Visuals"):
+        show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
+        if show_turn_tracker:
+            show_health = st.checkbox('Show Health')
+            show_ac = st.checkbox('Show Armor Class')
+            show_init = st.checkbox('Show Initiative',value=True)
+            show_team = st.checkbox('Show Teams',value=True)
+            show_group = st.checkbox('Show Combat Groups',value=True)
+            show_attributes = st.checkbox('Show Additional Attributes')
+    with st.expander("Audit Settings"): #TODO
+        enable_audit = st.checkbox('Enable Audit')
+    
 with tabImportExport:
-    st.image(".\Images\Villains_turn_logo.png")
-
+    st.header("Importing")
     uploaded_files = st.file_uploader("Select Villain's Turn CSV file(s)", accept_multiple_files=True)
-    for uploaded_file in uploaded_files:
-        # bytes_data = uploaded_file.read()
-        # st.write("filename:", uploaded_file.name)
-        # st.write(bytes_data)
-        data.turn_track = pd.concat([data.turn_track,pd.read_csv(uploaded_file)])
-    uploaded_files = None
-    # if st.button("Clear Data"):
-    #     if st.button("Are you sure?"):
-    #         data.turn_track = data.turn_track[0:0]
-    #         st.write("Data cleared")
-
-with tabAddPerson:
-    st.image(".\Images\Villains_turn_logo.png")
-
-    newPerson_group = st.text_input("Group")
-    newPerson_name = st.text_input('Character Name')
-    newPerson_hp = st.text_input('HP')
-    newPerson_ac = st.text_input('Armor Class')
-    man_init = st.checkbox('Manually Roll Initiative?')
-    if man_init :
-        newPerson_init = st.text_input('Initiative')
-    newPerson_b_init = st.text_input('Bonus Initiative')
-    newPerson_team = st.text_input('Team')
-    if st.button('Add Character'):
-        character = {
-            "name":newPerson_name,
-            "health":newPerson_hp,
-            "armor_class":newPerson_ac,
-            "initiative": newPerson_init if man_init else fx.roll(20),
-            "initiative_bonus":newPerson_b_init,
-            "team":newPerson_team,
-            "group":newPerson_group
-        }
-        data.turn_track=data.turn_track.append(character,ignore_index=True)
-
-st.write("Turn Track")
-st.write(data.turn_track)
+    keep_imported_groups = st.checkbox("Keep Imported Groups? (If they exist)",value=True)
+    if uploaded_files : # If a single file or more has been added
+        if st.button("Add to Turn Track?"):
+            for uploaded_file in uploaded_files:
+                data.turn_track = pd.concat([data.turn_track,fx.read_import(uploaded_file,import_groups=keep_imported_groups)])
+            uploaded_files = None
+    st.header("Exporting")
+    #TODO Exporting
+with tabModifications:
+    selected_modification = st.selectbox(
+        "What do you want to Modify",
+        options=["Select Function","Add Person","Remove Person","Change Initiatives"]
+    )
+    if (selected_modification == "Select Function"): #TODO
+        pass
+    elif (selected_modification == "Add Person"):
+        newPerson_group = st.text_input("Group")
+        newPerson_name = st.text_input('Character Name')
+        newPerson_hp = st.number_input('HP',value=0)
+        newPerson_ac = st.number_input('Armor Class',value=0)
+        man_init = st.checkbox('Manually Roll Initiative?')
+        if man_init :
+            newPerson_init = st.number_input('Initiative',value=0)
+        newPerson_b_init = st.number_input('Bonus Initiative',value=0)
+        newPerson_team = st.text_input('Team')
+        if st.button('Add Character'):
+            character = {
+                "name":newPerson_name,
+                "health":newPerson_hp,
+                "armor_class":newPerson_ac,
+                "initiative": newPerson_init if man_init else fx.roll(20),
+                "initiative_bonus":newPerson_b_init,
+                "team":newPerson_team,
+                "group":newPerson_group
+            }
+            data.turn_track=data.turn_track.append(character,ignore_index=True)
+    elif (selected_modification == "Remove Person"): #TODO
+        # select person and a button using drop pd.drop(index of character)
+        pass
+    elif (selected_modification == "Change Initiatives"):
+        if st.button("Auto Reroll all Initiatives?"):
+            data.turn_track = fx.auto_initiative(data.turn_track)
+        # select person, initiative field, and a button
+        with st.expander("Manually Set/Change Initiatives"):
+            selected_character = st.selectbox("Character",options=fx.character_list(data.turn_track))
+            new_initiative = st.number_input(
+                "New Initiative",
+                value = 1
+            )
+            if st.button("Set Initiative"):
+                data.turn_track.loc[selected_character,'initiative']=new_initiative #TODO For some reason breaks the DF
 
 ########## SideBar ##########
 selected_group_function = st.sidebar.selectbox(
     "Select Group Functions",
-    options=["Move Group","Move Person to Other Group","Disruption","Merge Groups","Split Group"]
+    options=["Select Function","Assign Groups","Move Group","Move Person to Other Group","Disruption","Merge Groups","Split Group","Change Group Name"]
 )
 
-if (selected_group_function == "Move Group"):
+if (selected_group_function == "Select Function"):
+        pass
+if (selected_group_function == "Assign Groups"):
+    if st.sidebar.button("Assign based on current initiatve"):
+        data.turn_track = fx.initiative_based_group_assignment(data.turn_track)
+    if st.sidebar.button("Remove All Group Assignments"):
+        data.turn_track = fx.remove_group_assignments(data.turn_track)
+    if st.sidebar.button("Give Everyone their Own Group"):
+        data.turn_track = fx.individual_groups(data.turn_track)
+elif (selected_group_function == "Move Group"): #TODO
     pass
-elif (selected_group_function == "Move Person to Other Group"):
+elif (selected_group_function == "Move Person to Other Group"): #TODO
     pass
-elif (selected_group_function == "Disruption"):
+elif (selected_group_function == "Disruption"): #TODO should probably put in the combat section because of logging. selects target group, similar code to split stuff below
     pass
-elif (selected_group_function == "Merge Groups"):
+elif (selected_group_function == "Merge Groups"): #TODO
     pass
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
@@ -110,3 +146,19 @@ elif (selected_group_function == "Split Group"):
         # st.sidebar.write(split_decicions)
         if st.sidebar.button("Split") :
             data.turn_track = fx.df_set_match_slice(data.turn_track,"group",group_to_split,split_decicions)
+elif (selected_modification == "Change Group Name"): #TODO
+    # select group, new name fields and a button which uses pd's replace
+    pass
+
+if show_turn_tracker :
+    st.header("Turn Track")
+    st.write(data.turn_track[data.turn_track.columns[[
+        True, # Always show name
+        show_health,
+        show_ac,
+        show_init, #Initiative
+        show_init, #Bonus Init
+        show_team,
+        show_group,
+        show_attributes
+    ]]])
