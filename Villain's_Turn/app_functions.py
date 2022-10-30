@@ -11,10 +11,14 @@ def read_import(path,import_groups=True):
         party["group"] = np.nan
         return party
 
-def initiative_based_group_assignment(groups:pd.DataFrame):
+def sort_by_initiatives(groups:pd.DataFrame):
     df = groups.copy()
     df['total_initiative'] = df['initiative']+df['initiative_bonus']
     df.sort_values(by='total_initiative',ascending=False,inplace=True)
+    return df.drop(columns="total_initiative")
+
+def initiative_based_group_assignment(groups:pd.DataFrame):
+    df = sort_by_initiatives(groups)
     df_count = {}
     team_order = df['team']
     group_placement = []
@@ -28,7 +32,7 @@ def initiative_based_group_assignment(groups:pd.DataFrame):
             lastTeam = team
         group_placement.append(f"{team} {df_count[team]}")
     df['group']=group_placement
-    return df.drop(columns="total_initiative")
+    return df
 
 def roll(sided=20):
     return random.randint(1,sided)

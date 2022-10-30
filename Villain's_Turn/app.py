@@ -48,7 +48,7 @@ with tabSettings:
             show_group = st.checkbox('Show Combat Groups',value=True)
             show_attributes = st.checkbox('Show Additional Attributes')
     with st.expander("Audit Settings"): #TODO
-        enable_audit = st.checkbox('Enable Audit')
+        enable_audit = st.checkbox('Enable Audit',value=True)
     
 with tabImportExport:
     st.header("Importing")
@@ -69,7 +69,6 @@ with tabModifications:
     if (selected_modification == "Select Function"): #TODO
         pass
     elif (selected_modification == "Add Person"):
-        newPerson_group = st.text_input("Group")
         newPerson_name = st.text_input('Character Name')
         newPerson_hp = st.number_input('HP',value=0)
         newPerson_ac = st.number_input('Armor Class',value=0)
@@ -78,6 +77,7 @@ with tabModifications:
             newPerson_init = st.number_input('Initiative',value=0)
         newPerson_b_init = st.number_input('Bonus Initiative',value=0)
         newPerson_team = st.text_input('Team')
+        newPerson_group = st.text_input("Group")
         if st.button('Add Character'):
             character = {
                 "name":newPerson_name,
@@ -93,8 +93,13 @@ with tabModifications:
         # select person and a button using drop pd.drop(index of character)
         pass
     elif (selected_modification == "Change Initiatives"):
-        if st.button("Auto Reroll all Initiatives?"):
-            data.turn_track = fx.auto_initiative(data.turn_track)
+        col_init_random, col_init_sort = st.columns(2)
+        with col_init_random:
+            if st.button("Auto Reroll all Initiatives?"):
+                data.turn_track = fx.auto_initiative(data.turn_track)
+        with col_init_sort:
+            if st.button("Sort Initiatives"):
+                data.turn_track = fx.sort_by_initiatives(data.turn_track)
         # select person, initiative field, and a button
         with st.expander("Manually Set/Change Initiatives"):
             selected_character = st.selectbox("Character",options=fx.character_list(data.turn_track))
@@ -161,4 +166,4 @@ if show_turn_tracker :
         show_team,
         show_group,
         show_attributes
-    ]]])
+    ]]].set_index('name'))
