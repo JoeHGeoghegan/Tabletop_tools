@@ -52,19 +52,45 @@ with tabSettings:
     
 with tabImportExport:
     st.header("Importing")
-    uploaded_files = st.file_uploader("Select Villain's Turn CSV file(s)", accept_multiple_files=True)
-    keep_imported_groups = st.checkbox("Keep Imported Groups? (If they exist)",value=True)
-    if uploaded_files : # If a single file or more has been added
-        if st.button("Add to Turn Track?"):
-            for uploaded_file in uploaded_files:
-                data.turn_track = pd.concat([data.turn_track,fx.read_import(uploaded_file,import_groups=keep_imported_groups)])
-            uploaded_files = None
+    with st.expander("Click to Open - Import"):
+        if st.button("Clear Whole Turn Track",key='import_clear'):
+            data.turn_track = data.turn_track[data.turn_track['name'] == None]
+        uploaded_files = st.file_uploader("Select Villain's Turn CSV file(s)", accept_multiple_files=True)
+        keep_imported_groups = st.checkbox("Keep Imported Groups? (If they exist)",value=True)
+        if uploaded_files : # If a single file or more has been added
+            if st.button("Add to Turn Track?"):
+                for uploaded_file in uploaded_files:
+                    data.turn_track = pd.concat([data.turn_track,fx.read_import(uploaded_file,import_groups=keep_imported_groups)])
+                uploaded_files = None
     st.header("Exporting")
-    #TODO Exporting
+    with st.expander("Click to Open - Export"):
+        col_export_all, col_export_team = st.columns(2)
+        export_date = st.date_input("Date Tag")
+        with col_export_all:
+            export_name = st.text_input("Export Name")
+            export_file = f"{export_name}_{export_date}.csv"
+            st.write(f"File Export Name: {export_file}.")
+            st.download_button(
+                "Press to Download Complete Turn Track",
+                fx.convert_df(data.turn_track),
+                export_file,
+                "text/csv"
+            )
+    with col_export_team:
+        export_team = st.selectbox("Team to Export",options=fx.team_list(data.turn_track))
+        st.write(data.turn_track[data.turn_track["team"]==export_team])
+        export_file_team = f"{export_team}_{export_date}.csv"
+        st.write(f"File Export Name: {export_file_team}.")
+        st.download_button(
+            "Press to Download Specific Team",
+            fx.convert_df(data.turn_track[data.turn_track["team"]==export_team]),
+            export_file_team,
+            "text/csv"
+    )
 with tabModifications:
     selected_modification = st.selectbox(
         "What do you want to Modify",
-        options=["Select Function","Add Person","Remove Person","Change Initiatives"]
+        options=["Select Function","Add Person","Remove Person/Team","Change Initiatives"]
     )
     if (selected_modification == "Select Function"): #TODO
         pass
@@ -89,9 +115,15 @@ with tabModifications:
                 "group":newPerson_group
             }
             data.turn_track=data.turn_track.append(character,ignore_index=True)
-    elif (selected_modification == "Remove Person"): #TODO
-        # select person and a button using drop pd.drop(index of character)
-        pass
+    elif (selected_modification == "Remove Person/Team"):
+        selected_character = st.selectbox("Character to Remove",options=fx.character_list(data.turn_track))
+        if st.button("Remove Character"):
+            data.turn_track = data.turn_track[data.turn_track['name'] != selected_character]
+        selected_team = st.selectbox("Team to Remove",options=fx.team_list(data.turn_track))
+        if st.button("Remove All Characters on a Team"):
+            data.turn_track = data.turn_track[data.turn_track['team'] != selected_team]
+        if st.button("Clear Whole Turn Track"):
+            data.turn_track = data.turn_track[data.turn_track['name'] == None]
     elif (selected_modification == "Change Initiatives"):
         col_init_random, col_init_sort = st.columns(2)
         with col_init_random:

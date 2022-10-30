@@ -11,6 +11,9 @@ def read_import(path,import_groups=True):
         party["group"] = np.nan
         return party
 
+def convert_df(df):
+   return df.to_csv(index=False).encode('utf-8')
+
 def sort_by_initiatives(groups:pd.DataFrame):
     df = groups.copy()
     df['total_initiative'] = df['initiative']+df['initiative_bonus']
@@ -47,6 +50,9 @@ def groups_list(turn_track:pd.DataFrame):
 
 def character_list(turn_track:pd.DataFrame):
     return(turn_track['name'].unique())
+
+def team_list(turn_track:pd.DataFrame):
+    return(turn_track['team'].unique())
 
 def df_match_slice(df:pd.DataFrame,column,match):
     return df[df[column]==match]
