@@ -6,6 +6,13 @@ import numpy as np
 from dataclasses import dataclass
 
 ###############################
+########## Functions ##########
+###############################
+# Function imports
+import app_functions as fx
+
+
+###############################
 ######## Steamlit Data ########
 ###############################
 @dataclass
@@ -26,21 +33,28 @@ def setup():
     return datablock()
 data = setup()
 
-###############################
-########## Functions ##########
-###############################
-# Function imports
-import app_functions as fx
-
 ################################
 ######## Streamlit Code ########
 ################################
 st.image(".\Images\Villains_turn_logo.png")
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
-    # Current Turn #TODO
-    # On Deck #TODO
-    
+    # TODO Group grouped detections
+    if True :
+        col_current_turn, col_on_deck, col_turn_controls = st.columns(3)
+        with col_current_turn:
+            st.write(f"{data.current_turn}'s turn")
+            st.write(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
+        with col_on_deck:
+            next_turn = fx.next_turn(data.turn_track,data.current_turn)
+            st.write(f"{next_turn} is on deck")
+            st.write(data.turn_track.loc[data.turn_track['group']==next_turn,'name'])
+        with col_turn_controls:
+            if st.button("Next Turn"):
+                data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
+    else:
+        st.write("Groups are not gathered, move groups to desired order or reset initiative")
+
     with st.expander("Combat"):
         st.write(fx.character_list)
     # TODO Combat Tree
@@ -48,7 +62,8 @@ with tabOverview:
     # NOTE Trees choices as items are selected "_<XXX>"
     #   NOTE Dynamic? - probably not, would be silly to go multiple layers. And can be done in manual anyway
     # TODO Select attributes to either side
-    # TODO display for each audit tag type have 
+    # TODO display for each audit tag type have
+    #TODO disruption (similar UI for splitting and moving)
 with tabSettings:
     with st.expander("Turn Tracker Visuals"):
         show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
@@ -74,6 +89,8 @@ with tabImportExport:
             if st.button("Add to Turn Track?"):
                 for uploaded_file in uploaded_files:
                     data.turn_track = pd.concat([data.turn_track,fx.read_import(uploaded_file,import_groups=keep_imported_groups)])
+                if data.current_turn == None :
+                    data.current_turn = data.turn_track.iloc[0]['group']
                 uploaded_files = None
     st.header("Exporting")
     with st.expander("Click to Open - Export"):
@@ -159,7 +176,7 @@ with tabModifications:
 ########## SideBar ##########
 selected_group_function = st.sidebar.selectbox(
     "Select Group Functions",
-    options=["Select Function","Assign Groups","Move Group","Move Person to Other Group","Disruption","Merge Groups","Split Group","Change Group Name"]
+    options=["Select Function","Assign Groups","Move Group","Move Person to Other Group","Merge Groups","Split Group","Change Group Name"]
 )
 st.sidebar.markdown('---')
 if (selected_group_function == "Select Function"):
@@ -200,8 +217,6 @@ elif (selected_group_function == "Move Person to Other Group"):
         destination_group = st.sidebar.text_input("Group to Add Character to",value="New Group")
         if st.sidebar.button("Move Character to New Group"):
             data.turn_track = fx.move_character_to_new_group(data.turn_track,person_to_move,destination_group)
-elif (selected_group_function == "Disruption"): #TODO should probably put in the combat section because of logging. selects target group, similar code to split stuff below
-    pass
 elif (selected_group_function == "Merge Groups"):
     merge_group_1 = st.sidebar.selectbox(
         "Select Group 1 to Merge",

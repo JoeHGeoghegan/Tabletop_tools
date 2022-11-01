@@ -1,18 +1,10 @@
-Movement,Action,Bonus Action,Reaction,OUTCOME,Result (Checkboxs),tags_Type,tags_Condition,tags_Environment
-Moves,Attacks,Offhand Attacks,Opportunity attacks,Hits,N/A,acid,Breaks Concentration,Lightly obscured
-Climbs,Grapples,Casts spell,Uses Readied action,Misses,"Dealing<t,->",bludgeoning,Enters Concentration,Heavily obscured
-Swims,Shoves,Uses class feature,Casts a spell,Hits Critical,"Healing<t,+>",cold,Blinded,Bright light
-Drops prone,Casts spell,,,Fails,"Self Healing<s,+>",fire,Charmed,Dim light
-Crawls,Dashes,,,,"Hurts Self<s,->",force,Deafened,Darkness
-Stands up,Disengages,,,,Buffing<t>,lightning,Exhaustion,Blindsight
-High jumps,Dodges,,,,Debuffing<t>,necrotic,Frightened,Darkvision
-Long jumps,Escapes,,,,,piercing,Grappled,Truesight
-Improvises<INFO>,Helps,,,,,poison,Incapacitated,Half cover
-Moves Across Difficult terrain,Uses Object,,,,,psychic,Invisible,Three-quarters cover
-Moves while Grappling,Uses shield,,,,,radiant,Paralyzed,Full cover
-,Hides,,,,,slashing,Petrified,
-,Readies,,,,,thunder,Poisoned,
-,Uses class feature,,,,,,Prone,
-,Improvises<INFO>,,,,,,Restrained,
-,,,,,,,Stunned,
-,,,,,,,Unconscious,
+Audit Header,,,,,,,,,,,,,,,,,,
+Movement,Moves,Climbs,Swims,Drops prone,Crawls,Stands up,High jumps,Long jumps,"[Improvises,info]",Moves Across Difficult terrain,Moves while Grappling,,,,,,,
+Action,Attacks,Grapples,Shoves,Casts spell,Dashes,Disengages,Dodges,Escapes,Helps,Uses Object,Uses shield,Hides,Readies/Holds Action,"[Readies Disruption,target_group,disrupt]",Uses class feature,"[Improvises,info]",,
+Bonus Action,Offhand Attacks,Casts spell,Uses class feature,,,,,,,,,,,,,,,
+Reaction,Opportunity attacks,Uses Readied action,Casts a spell,,,,,,,,,,,,,,,
+Outcome,Hits,Misses,Hits Critical,Fails,,,,,,,,,,,,,,
+Results,Nothing Happened,"[Dealing,target,-,damage]","[Healing,target,+,health]","[Self Healing,self,+,health]","[Hurts Harm,self,-,damage]","[Buffing,target,/]","[Debuffing,target,/]",,,,,,,,,,,
+tags_Type,acid,bludgeoning,cold,fire,force,lightning,necrotic,piercing,poison,psychic,radiant,slashing,thunder,,,,,
+tags_Condition,Breaks Concentration,Enters Concentration,Disruption,Blinded,Charmed,Deafened,Exhaustion,Frightened,Grappled,Incapacitated,Invisible,Paralyzed,Petrified,Poisoned,Prone,Restrained,Stunned,Unconscious
+tags_Environment,Lightly obscured,Heavily obscured,Bright light,Dim light,Darkness,Blindsight,Darkvision,Truesight,Half cover,Three-quarters cover,Full cover,,,,,,,

@@ -8,8 +8,15 @@ def read_import(path,import_groups=True):
     if import_groups and ('group' in list(party)):
         return party
     else:
-        party["group"] = np.nan
+        party = individual_groups(party)
         return party
+
+def read_audit(path):
+    audit_read = pd.read_csv(path)
+    audit_tags = audit_read[audit_read['Audit Header'].str.contains('tags_')]
+    audit_actions = audit_read.drop(index=audit_tags.index)
+    return (audit_actions.set_index("Audit Header").transpose().reset_index(drop=True),
+                audit_tags.set_index("Audit Header").transpose().reset_index(drop=True))
 
 def convert_df(df):
    return df.to_csv(index=False).encode('utf-8')
@@ -109,3 +116,11 @@ def merge_groups(groups:pd.DataFrame,merge_group_1,merge_group_2,merged_name):
     df = move_group(df,merge_group_1,"After",merge_group_2)
     df['group'].replace([merge_group_1,merge_group_2],[merged_name,merged_name],inplace=True)
     return df
+
+def next_turn(groups:pd.DataFrame,current_turn):
+    groups.reset_index(drop=True,inplace=True)
+    current_turns_last_index=groups[groups['group']==current_turn].index[-1]
+    if current_turns_last_index == len(groups)-1 : #loop around detection
+        return groups.iloc[0]['group']
+    else:
+        return groups.iloc[current_turns_last_index+1]['group']
