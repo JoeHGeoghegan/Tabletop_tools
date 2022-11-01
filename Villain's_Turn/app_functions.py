@@ -64,9 +64,6 @@ def df_set_match_slice(df:pd.DataFrame,column,match,new_data):
     df_copy.update(df_slice)
     return df_copy
 
-def change_group_assignment(groups:pd.DataFrame,new_value):
-    return
-
 def remove_group_assignments(groups:pd.DataFrame):
     df = groups.copy()
     df['group']=np.nan
@@ -76,3 +73,13 @@ def individual_groups(groups:pd.DataFrame):
     df = groups.copy()
     df['group']=df['name']
     return df
+
+def move_group(groups:pd.DataFrame,group_to_move,before_or_after,group_to_place):
+    df = groups.copy()
+    slice_group_to_move = df[df['group']==group_to_move].copy()
+    df.drop(slice_group_to_move.index,inplace=True)
+    if before_or_after == "Before" :
+        index_split_point = (df[df['group']==group_to_place].index[0]) #first index
+    else :
+        index_split_point = df[df['group']==group_to_place].index[-1]+1 #last index
+    return pd.concat([df.iloc[:index_split_point],slice_group_to_move,df.iloc[index_split_point:]])

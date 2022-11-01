@@ -92,7 +92,8 @@ with tabModifications:
         "What do you want to Modify",
         options=["Select Function","Add Person","Remove Person/Team","Change Initiatives"]
     )
-    if (selected_modification == "Select Function"): #TODO
+    st.markdown('---')
+    if (selected_modification == "Select Function"):
         pass
     elif (selected_modification == "Add Person"):
         newPerson_name = st.text_input('Character Name')
@@ -140,14 +141,14 @@ with tabModifications:
                 value = 1
             )
             if st.button("Set Initiative"):
-                data.turn_track.loc[selected_character,'initiative']=new_initiative #TODO For some reason breaks the DF
+                data.turn_track.loc[(data.turn_track['name'] == selected_character,'initiative')]=new_initiative
 
 ########## SideBar ##########
 selected_group_function = st.sidebar.selectbox(
     "Select Group Functions",
     options=["Select Function","Assign Groups","Move Group","Move Person to Other Group","Disruption","Merge Groups","Split Group","Change Group Name"]
 )
-
+st.sidebar.markdown('---')
 if (selected_group_function == "Select Function"):
         pass
 if (selected_group_function == "Assign Groups"):
@@ -157,19 +158,30 @@ if (selected_group_function == "Assign Groups"):
         data.turn_track = fx.remove_group_assignments(data.turn_track)
     if st.sidebar.button("Give Everyone their Own Group"):
         data.turn_track = fx.individual_groups(data.turn_track)
-elif (selected_group_function == "Move Group"): #TODO
-    pass
+elif (selected_group_function == "Move Group"): # TODO BUG Can cause errors when groups are not already sorted/on edge of the array
+    group_to_move = st.sidebar.selectbox(
+        "Select Group to Move",
+        options=fx.groups_list(data.turn_track)
+    )
+    before_or_after = st.sidebar.select_slider("Before or After",["Before","After"])
+    group_to_place = st.sidebar.selectbox(
+        f"Choose which group {group_to_move} will move {before_or_after}",
+        options=fx.groups_list(data.turn_track)
+    )
+    if st.sidebar.button("Move"):
+        data.turn_track = fx.move_group(data.turn_track,group_to_move,before_or_after,group_to_place)
 elif (selected_group_function == "Move Person to Other Group"): #TODO
     pass
 elif (selected_group_function == "Disruption"): #TODO should probably put in the combat section because of logging. selects target group, similar code to split stuff below
     pass
 elif (selected_group_function == "Merge Groups"): #TODO
+    # Move first group behind second group and rename first group
     pass
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",
         options=fx.groups_list(data.turn_track)
-        )
+    )
     if(group_to_split!=None):
         group_to_split_1st = st.sidebar.text_input("First Half Name",value=f"{group_to_split} 1")
         group_to_split_2nd = st.sidebar.text_input("Second Half Name",value=f"{group_to_split} 2")
@@ -183,9 +195,15 @@ elif (selected_group_function == "Split Group"):
         # st.sidebar.write(split_decicions)
         if st.sidebar.button("Split") :
             data.turn_track = fx.df_set_match_slice(data.turn_track,"group",group_to_split,split_decicions)
-elif (selected_modification == "Change Group Name"): #TODO
+elif (selected_group_function == "Change Group Name"):
     # select group, new name fields and a button which uses pd's replace
-    pass
+    group_to_rename = st.sidebar.selectbox(
+        "Select Group to Rename",
+        options=fx.groups_list(data.turn_track)
+    )
+    new_name = st.sidebar.text_input("New Name")
+    if st.sidebar.button("Rename Group"):
+        data.turn_track.replace(group_to_rename,new_name,inplace=True)
 
 if show_turn_tracker :
     st.header("Turn Track")
