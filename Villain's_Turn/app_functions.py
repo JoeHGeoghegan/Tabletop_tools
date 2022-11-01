@@ -61,6 +61,11 @@ def character_list(turn_track:pd.DataFrame):
 def team_list(turn_track:pd.DataFrame):
     return(turn_track['team'].unique())
 
+def groups_gathered_check(groups:pd.DataFrame):
+    order_list = groups_list(groups)
+    team_changes = groups["group"].shift() != groups["group"]
+    return len(team_changes[team_changes==True])==len(order_list)
+
 def df_match_slice(df:pd.DataFrame,column,match):
     return df[df[column]==match]
 
@@ -124,3 +129,11 @@ def next_turn(groups:pd.DataFrame,current_turn):
         return groups.iloc[0]['group']
     else:
         return groups.iloc[current_turns_last_index+1]['group']
+
+def previous_turn(groups:pd.DataFrame,current_turn):
+    groups.reset_index(drop=True,inplace=True)
+    current_turns_last_index=groups[groups['group']==current_turn].index[0]
+    if current_turns_last_index == 0 : #loop around detection
+        return groups.iloc[-1]['group']
+    else:
+        return groups.iloc[current_turns_last_index-1]['group']

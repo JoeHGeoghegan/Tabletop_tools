@@ -36,11 +36,20 @@ data = setup()
 ################################
 ######## Streamlit Code ########
 ################################
-st.image(".\Images\Villains_turn_logo.png")
+col_image, col_refresh = st.columns(2)
+with col_image:
+    st.image(".\Images\Villains_turn_logo.png")
+with col_refresh:
+    st.button("Refresh")
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
-    # TODO Group grouped detections
-    if True :
+    if len(data.turn_track) == 0:
+        st.write("Welcome! Add Characters in the Modifications tab or Import an exisiting Villain's Turn csv to get started!")
+    elif not fx.groups_gathered_check(data.turn_track) :
+        st.write("Groups are not gathered, move groups to desired order or reset initiative")
+    else :
+        if data.current_turn==None or not (data.current_turn in fx.groups_list(data.turn_track)):
+            data.current_turn = data.turn_track.iloc[0]['group']
         col_current_turn, col_on_deck, col_turn_controls = st.columns(3)
         with col_current_turn:
             st.write(f"{data.current_turn}'s turn")
@@ -52,11 +61,14 @@ with tabOverview:
         with col_turn_controls:
             if st.button("Next Turn"):
                 data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
-    else:
-        st.write("Groups are not gathered, move groups to desired order or reset initiative")
+            if st.button("Previous Turn"):
+                data.current_turn = fx.previous_turn(data.turn_track,data.current_turn)
+            turn_jump = st.selectbox("Jump to Turn",options=fx.groups_list(data.turn_track))
+            if st.button("Jump to Turn"):
+                data.current_turn = turn_jump
 
     with st.expander("Combat"):
-        st.write(fx.character_list)
+        st.write(fx.character_list(data.turn_track))
     # TODO Combat Tree
     # NOTE Actions from audit + Manual checkbox and allow 2 fillable forms, with audit text preview
     # NOTE Trees choices as items are selected "_<XXX>"
@@ -163,6 +175,7 @@ with tabModifications:
         with col_init_sort:
             if st.button("Sort Initiatives"):
                 data.turn_track = fx.sort_by_initiatives(data.turn_track)
+                data.turn_track = fx.individual_groups(data.turn_track)
         # select person, initiative field, and a button
         with st.expander("Manually Set/Change Initiatives"):
             selected_character = st.selectbox("Character",options=fx.character_list(data.turn_track))
@@ -231,6 +244,7 @@ elif (selected_group_function == "Merge Groups"):
         data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
         data.turn_track = fx.move_group(data.turn_track,merge_group_1,"After",merge_group_2)
         data.turn_track = data.turn_track.replace(merge_group_2,merged_name,inplace=True)
+        data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",
