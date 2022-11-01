@@ -1,0 +1,18 @@
+Movement,Action,Bonus Action,Reaction,OUTCOME,Result (Checkboxs),tags_Type,tags_Condition,tags_Environment
+Moves,Attacks,Offhand Attacks,Opportunity attacks,Hits,N/A,acid,Breaks Concentration,Lightly obscured
+Climbs,Grapples,Casts spell,Uses Readied action,Misses,"Dealing<t,->",bludgeoning,Enters Concentration,Heavily obscured
+Swims,Shoves,Uses class feature,Casts a spell,Hits Critical,"Healing<t,+>",cold,Blinded,Bright light
+Drops prone,Casts spell,,,Fails,"Self Healing<s,+>",fire,Charmed,Dim light
+Crawls,Dashes,,,,"Hurts Self<s,->",force,Deafened,Darkness
+Stands up,Disengages,,,,Buffing<t>,lightning,Exhaustion,Blindsight
+High jumps,Dodges,,,,Debuffing<t>,necrotic,Frightened,Darkvision
+Long jumps,Escapes,,,,,piercing,Grappled,Truesight
+Improvises<INFO>,Helps,,,,,poison,Incapacitated,Half cover
+Moves Across Difficult terrain,Uses Object,,,,,psychic,Invisible,Three-quarters cover
+Moves while Grappling,Uses shield,,,,,radiant,Paralyzed,Full cover
+,Hides,,,,,slashing,Petrified,
+,Readies,,,,,thunder,Poisoned,
+,Uses class feature,,,,,,Prone,
+,Improvises<INFO>,,,,,,Restrained,
+,,,,,,,Stunned,
+,,,,,,,Unconscious,

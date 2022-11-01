@@ -13,8 +13,13 @@ class datablock:
     turn_track:pd.DataFrame
 
     def __init__(self):
-        headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
-        self.turn_track = pd.DataFrame(columns=headers)
+        track_headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
+        self.turn_track = pd.DataFrame(columns=track_headers)
+        self.current_turn = None
+        audit_headers = ["source","source_tags","action","recipient","recipient_tags"] 
+        self.audit = pd.DataFrame(columns=audit_headers)
+        self.audit_actions,self.audit_tags = fx.read_audit("data\default_audit_actions.csv")
+        
 
 @st.cache(allow_output_mutation=True)
 def setup():
@@ -35,8 +40,15 @@ tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview
 with tabOverview:
     # Current Turn #TODO
     # On Deck #TODO
-    # Combat expander #TODO
-    pass
+    
+    with st.expander("Combat"):
+        st.write(fx.character_list)
+    # TODO Combat Tree
+    # NOTE Actions from audit + Manual checkbox and allow 2 fillable forms, with audit text preview
+    # NOTE Trees choices as items are selected "_<XXX>"
+    #   NOTE Dynamic? - probably not, would be silly to go multiple layers. And can be done in manual anyway
+    # TODO Select attributes to either side
+    # TODO display for each audit tag type have 
 with tabSettings:
     with st.expander("Turn Tracker Visuals"):
         show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
@@ -49,7 +61,8 @@ with tabSettings:
             show_attributes = st.checkbox('Show Additional Attributes')
     with st.expander("Audit Settings"): #TODO
         enable_audit = st.checkbox('Enable Audit',value=True)
-    
+        if enable_audit :
+            enable_tags = st.checkbox('Use Combat Tags?',value=True)
 with tabImportExport:
     st.header("Importing")
     with st.expander("Click to Open - Import"):
@@ -158,7 +171,7 @@ if (selected_group_function == "Assign Groups"):
         data.turn_track = fx.remove_group_assignments(data.turn_track)
     if st.sidebar.button("Give Everyone their Own Group"):
         data.turn_track = fx.individual_groups(data.turn_track)
-elif (selected_group_function == "Move Group"): # TODO BUG Can cause errors when groups are not already sorted/on edge of the array
+elif (selected_group_function == "Move Group"):
     group_to_move = st.sidebar.selectbox(
         "Select Group to Move",
         options=fx.groups_list(data.turn_track)
@@ -166,17 +179,43 @@ elif (selected_group_function == "Move Group"): # TODO BUG Can cause errors when
     before_or_after = st.sidebar.select_slider("Before or After",["Before","After"])
     group_to_place = st.sidebar.selectbox(
         f"Choose which group {group_to_move} will move {before_or_after}",
-        options=fx.groups_list(data.turn_track)
+        options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=group_to_move]
     )
     if st.sidebar.button("Move"):
         data.turn_track = fx.move_group(data.turn_track,group_to_move,before_or_after,group_to_place)
-elif (selected_group_function == "Move Person to Other Group"): #TODO
-    pass
+elif (selected_group_function == "Move Person to Other Group"):
+    person_to_move = st.sidebar.selectbox(
+        "Select Person to Move",
+        options=fx.character_list(data.turn_track)
+    )
+    use_existing_group = st.sidebar.checkbox("Move to Existing Group?",value=True)
+    if use_existing_group:
+        destination_group = st.sidebar.selectbox(
+            "Group to Add Character to",
+            options=fx.groups_list(data.turn_track)
+        )
+        if st.sidebar.button("Move Character"):
+            data.turn_track = fx.move_character(data.turn_track, person_to_move, destination_group)
+    else:
+        destination_group = st.sidebar.text_input("Group to Add Character to",value="New Group")
+        if st.sidebar.button("Move Character to New Group"):
+            data.turn_track = fx.move_character_to_new_group(data.turn_track,person_to_move,destination_group)
 elif (selected_group_function == "Disruption"): #TODO should probably put in the combat section because of logging. selects target group, similar code to split stuff below
     pass
-elif (selected_group_function == "Merge Groups"): #TODO
-    # Move first group behind second group and rename first group
-    pass
+elif (selected_group_function == "Merge Groups"):
+    merge_group_1 = st.sidebar.selectbox(
+        "Select Group 1 to Merge",
+        options=fx.groups_list(data.turn_track)
+    )
+    merge_group_2 = st.sidebar.selectbox(
+        "Select Group 2 to Merge",
+        options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=merge_group_1]
+    )
+    merged_name = st.sidebar.text_input("New Name",value=f"{merge_group_1} and {merge_group_2}")
+    if st.sidebar.button("Merge"):
+        data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
+        data.turn_track = fx.move_group(data.turn_track,merge_group_1,"After",merge_group_2)
+        data.turn_track = data.turn_track.replace(merge_group_2,merged_name,inplace=True)
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",

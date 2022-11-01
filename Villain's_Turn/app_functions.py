@@ -76,10 +76,36 @@ def individual_groups(groups:pd.DataFrame):
 
 def move_group(groups:pd.DataFrame,group_to_move,before_or_after,group_to_place):
     df = groups.copy()
+    df.reset_index(drop=True,inplace=True)
     slice_group_to_move = df[df['group']==group_to_move].copy()
     df.drop(slice_group_to_move.index,inplace=True)
+    df.reset_index(drop=True,inplace=True)
+    slice_group_to_move.reset_index(drop=True,inplace=True)
     if before_or_after == "Before" :
         index_split_point = (df[df['group']==group_to_place].index[0]) #first index
     else :
         index_split_point = df[df['group']==group_to_place].index[-1]+1 #last index
-    return pd.concat([df.iloc[:index_split_point],slice_group_to_move,df.iloc[index_split_point:]])
+    return pd.concat([df.iloc[:index_split_point],slice_group_to_move,df.iloc[index_split_point:]]).reset_index(drop=True)
+
+def move_character(groups:pd.DataFrame,person_to_move,destination_group):
+    df = groups.copy()
+    df.reset_index(drop=True,inplace=True)
+    slice_character_to_move = df[df['name']==person_to_move].copy()
+    slice_character_to_move['group']=destination_group
+    df.drop(slice_character_to_move.index,inplace=True)
+    index_split_point = df[df['group']==destination_group].index[-1] #last index
+    return pd.concat([df.iloc[:index_split_point],slice_character_to_move,df.iloc[index_split_point:]]).reset_index(drop=True)
+
+def move_character_to_new_group(groups:pd.DataFrame,person_to_move,new_group_name):
+    df = groups.copy()
+    old_group=df.loc[(df["name"]==person_to_move,"group")].values[0]
+    df.loc[(df["name"]==person_to_move,"group")]=new_group_name
+    if df[df['group']==old_group].empty :
+        return df # If character was the only member of a group, no need to rearrange
+    return move_group(df,new_group_name,"After",old_group)
+
+def merge_groups(groups:pd.DataFrame,merge_group_1,merge_group_2,merged_name):
+    df = groups.copy()
+    df = move_group(df,merge_group_1,"After",merge_group_2)
+    df['group'].replace([merge_group_1,merge_group_2],[merged_name,merged_name],inplace=True)
+    return df
