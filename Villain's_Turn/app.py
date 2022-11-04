@@ -11,10 +11,10 @@ from dataclasses import dataclass
 # Function imports
 import app_functions as fx
 
-
 ###############################
 ######## Steamlit Data ########
 ###############################
+st.set_page_config(layout="wide")
 @dataclass
 class datablock:
     turn_track:pd.DataFrame
@@ -67,9 +67,36 @@ with tabOverview:
             if st.button("Jump to Turn"):
                 data.current_turn = turn_jump
 
-    with st.expander("Combat"):
-        st.write(fx.character_list(data.turn_track))
-    # TODO Combat Tree
+        with st.expander("Combat"):
+            col_actors, col_action, col_target = st.columns(3)
+            with col_actors:
+                if st.checkbox("Are there active characters?",value=True):
+                    if len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) > 1 :
+                        active_characters = st.multiselect("Active Character(s)", options=data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
+                    elif len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) == 1  :
+                        active_characters = data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']
+                    else :
+                        st.write("It is no one's turn!")
+                    if st.checkbox("Specify Attributes?",key="active_characters_specify"):
+                        attribute_select_active_characters = []
+                        for character in active_characters:
+                            attribute_select_active_characters.append(st.checkbox(f'Select Attributes of {character}?'))
+                else :
+                    active_character_description = st.text_area(f'What is causing the action?')
+            with col_action:
+                if st.checkbox("Standard Action",value=True):
+                    action = st.selectbox("Action", options=data.audit_actions.columns)
+                else :
+                    action = st.text_area(f'What occured?')
+            with col_target:
+                if st.checkbox("Are there target characters?",value=True):
+                    target_characters = st.multiselect("Target Character(s)", options=data.turn_track['name'])
+                    if st.checkbox("Specify Attributes?",key="target_characters_specify"):
+                        attribute_select_target_characters = []
+                        for character in target_characters:
+                            attribute_select_target_characters.append(st.checkbox(f'Select Attributes of {character}?'))
+                else :
+                    target_description = st.text_area(f'What occured with the {action}')
     # NOTE Actions from audit + Manual checkbox and allow 2 fillable forms, with audit text preview
     # NOTE Trees choices as items are selected "_<XXX>"
     #   NOTE Dynamic? - probably not, would be silly to go multiple layers. And can be done in manual anyway
@@ -195,7 +222,10 @@ st.sidebar.markdown('---')
 if (selected_group_function == "Select Function"):
         pass
 if (selected_group_function == "Assign Groups"):
-    if st.sidebar.button("Assign based on current initiatve"):
+    if st.sidebar.button("Assign based on current initiative"):
+        data.turn_track = fx.initiative_based_group_assignment(data.turn_track)
+    if st.sidebar.button("Assign based on new initiative"):
+        data.turn_track = fx.auto_initiative(data.turn_track)
         data.turn_track = fx.initiative_based_group_assignment(data.turn_track)
     if st.sidebar.button("Remove All Group Assignments"):
         data.turn_track = fx.remove_group_assignments(data.turn_track)
