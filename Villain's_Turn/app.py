@@ -23,10 +23,14 @@ class datablock:
         track_headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
         self.turn_track = pd.DataFrame(columns=track_headers)
         self.current_turn = None
-        audit_headers = ["source","source_tags","action","recipient","recipient_tags"] 
+        audit_headers = ["turn","source","action","action_number","result","target","source_additional_info","target_additional_info","environment"]  # TODO Catch all info for conditions/environment?
         self.audit = pd.DataFrame(columns=audit_headers)
-        self.audit_actions,self.audit_tags = fx.read_audit("data\default_audit_actions.csv")
-        
+        self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit("data\default_audit_actions.csv")
+        self.meta_keys = fx.meta_to_dict(self.audit_meta)
+        self.turn_number = 0
+    
+    def set_audit(self, path):
+        self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit(path)
 
 @st.cache(allow_output_mutation=True)
 def setup():
@@ -41,6 +45,7 @@ with col_image:
     st.image(".\Images\Villains_turn_logo.png")
 with col_refresh:
     st.button("Refresh")
+    st.write(f'Turn #: {data.turn_number}')
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
     if len(data.turn_track) == 0:
@@ -50,25 +55,30 @@ with tabOverview:
     else :
         if data.current_turn==None or not (data.current_turn in fx.groups_list(data.turn_track)):
             data.current_turn = data.turn_track.iloc[0]['group']
+        current_group = data.turn_track.loc[data.turn_track['group']==data.current_turn]
         col_current_turn, col_on_deck, col_turn_controls = st.columns(3)
         with col_current_turn:
             st.write(f"{data.current_turn}'s turn")
-            st.write(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
+            st.write(current_group['name'])
         with col_on_deck:
             next_turn = fx.next_turn(data.turn_track,data.current_turn)
             st.write(f"{next_turn} is on deck")
             st.write(data.turn_track.loc[data.turn_track['group']==next_turn,'name'])
         with col_turn_controls:
             if st.button("Next Turn"):
-                data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
+                data.current_turn = next_turn
+                data.turn_number += 1
             if st.button("Previous Turn"):
                 data.current_turn = fx.previous_turn(data.turn_track,data.current_turn)
+                data.turn_number -= 1
             turn_jump = st.selectbox("Jump to Turn",options=fx.groups_list(data.turn_track))
             if st.button("Jump to Turn"):
                 data.current_turn = turn_jump
-
-        with st.expander("Combat"):
-            col_actors, col_action, col_target = st.columns(3)
+                data.turn_number = 0
+        if st.checkbox("Show Combat - Toggle to clear values",value=True):
+            # with st.form("Combat_form",clear_on_submit=True):
+            st.markdown("---")
+            col_actors, col_action, col_target,col_execute = st.columns(4)
             with col_actors:
                 if st.checkbox("Are there active characters?",value=True):
                     if len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) > 1 :
@@ -77,32 +87,66 @@ with tabOverview:
                         active_characters = data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']
                     else :
                         st.write("It is no one's turn!")
+                    attribute_select_active_characters = []
                     if st.checkbox("Specify Attributes?",key="active_characters_specify"):
                         attribute_select_active_characters = []
                         for character in active_characters:
                             attribute_select_active_characters.append(st.checkbox(f'Select Attributes of {character}?'))
+                        if all(attribute_select_active_characters) :
+                            st.multiselect("Select Attributes", options = fx.attributes_list(current_group.loc[attribute_select_active_characters]))
                 else :
-                    active_character_description = st.text_area(f'What is causing the action?')
+                    active_characters = st.text_area(f'What is causing the action?')
             with col_action:
                 if st.checkbox("Standard Action",value=True):
-                    action = st.selectbox("Action", options=data.audit_actions.columns)
+                    action_subject = st.selectbox("Action Type", options=data.audit_actions.keys())
+                    action = st.selectbox(f"{action_subject} Submenu", options=data.audit_actions[action_subject])
                 else :
-                    action = st.text_area(f'What occured?')
+                    action = st.text_area('What occured?')
             with col_target:
                 if st.checkbox("Are there target characters?",value=True):
                     target_characters = st.multiselect("Target Character(s)", options=data.turn_track['name'])
+                    attribute_select_target_characters = []
                     if st.checkbox("Specify Attributes?",key="target_characters_specify"):
                         attribute_select_target_characters = []
                         for character in target_characters:
                             attribute_select_target_characters.append(st.checkbox(f'Select Attributes of {character}?'))
+                        if all(attribute_select_target_characters) :
+                            st.multiselect("Select Attributes", options = fx.attributes_list(data.turn_track.loc[attribute_select_target_characters]))
                 else :
-                    target_description = st.text_area(f'What occured with the {action}')
+                    target_characters = st.text_area(f'What occured with the {action}')
+            with col_execute:
+                attribute_environment = st.selectbox("Environment Information", options=data.audit_tags['Environment'])
+                outcome = st.selectbox("Outcome",options=data.audit_outcome['Outcome'])
+                results = st.multiselect("Result",options=data.audit_outcome['Results'])
+                action_number = None # TODO add meta parsing - this method won't work/audit well - audit line for each result?
+                
+                # submitted = st.form_submit_button("Submit Action") # Cannot use form, they do not allow widget updates
+                # if submitted:
+                if st.button("Submit Action"):
+                    fx.add_audit(data.audit,data.turn_number,
+                        active_characters,
+                        action,
+                        action_number,
+                        results,
+                        target_characters,
+                        attribute_select_active_characters,
+                        attribute_select_target_characters,
+                        attribute_environment
+                    )
+            st.markdown("---")
+            # if results != None :
+            #     for result in results :
+                # if has_meta(result):
+                    # result_type,result_target,result_modification,result_wording = fx.parse_result_meta(result)
+
+                    # TODO fill dynamics
+                        # type = Result name texts
+                        # target = self/target/self_group/target_group
+                        # modification = info,+,-,/,condition,attribute
+                        # wording = modification wording "damage"/"healing"...
     # NOTE Actions from audit + Manual checkbox and allow 2 fillable forms, with audit text preview
-    # NOTE Trees choices as items are selected "_<XXX>"
-    #   NOTE Dynamic? - probably not, would be silly to go multiple layers. And can be done in manual anyway
-    # TODO Select attributes to either side
-    # TODO display for each audit tag type have
-    #TODO disruption (similar UI for splitting and moving)
+    # TODO damage/healing UI
+    # TODO disruption (similar UI for splitting and moving)
 with tabSettings:
     with st.expander("Turn Tracker Visuals"):
         show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
@@ -113,13 +157,30 @@ with tabSettings:
             show_team = st.checkbox('Show Teams',value=True)
             show_group = st.checkbox('Show Combat Groups',value=True)
             show_attributes = st.checkbox('Show Additional Attributes')
-    with st.expander("Audit Settings"): #TODO
-        enable_audit = st.checkbox('Enable Audit',value=True)
-        if enable_audit :
-            enable_tags = st.checkbox('Use Combat Tags?',value=True)
+    with st.expander("Audit Settings"): #TODO Expand on settings/Export
+        st.download_button(
+            "Press to Download Default Action Configuration",
+            fx.convert_df(pd.read_csv(".\data\default_audit_actions.csv")),
+            "default_audit_actions.csv",
+            "text/csv"
+        )
+        st.download_button(
+            "Export Audit",
+            fx.convert_df(data.audit),
+            f"audit_{str(pd.Timestamp.today().date())}.csv",
+            "text/csv"
+        )
+        new_configuration = st.file_uploader("Upload Custom Action Configuration", accept_multiple_files=False)
+        if new_configuration != None :
+            if st.button("Switch Configuration"): data.set_audit(new_configuration)
+        if st.button("Show Current Audit Trail"):
+            st.write(data.audit.set_index('turn'))
+        # enable_audit = st.checkbox('Enable Audit',value=True)
 with tabImportExport:
     st.header("Importing")
     with st.expander("Click to Open - Import"):
+        if st.button("Import Test File"): # TODO Remove test code
+            data.turn_track = pd.concat([data.turn_track,fx.read_import("Test_Files&Notebooks\Party2.csv",import_groups=False)]) # Remove
         if st.button("Clear Whole Turn Track",key='import_clear'):
             data.turn_track = data.turn_track[data.turn_track['name'] == None]
         uploaded_files = st.file_uploader("Select Villain's Turn CSV file(s)", accept_multiple_files=True)
@@ -155,7 +216,7 @@ with tabImportExport:
             fx.convert_df(data.turn_track[data.turn_track["team"]==export_team]),
             export_file_team,
             "text/csv"
-    )
+        )
 with tabModifications:
     selected_modification = st.selectbox(
         "What do you want to Modify",
@@ -242,6 +303,7 @@ elif (selected_group_function == "Move Group"):
         options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=group_to_move]
     )
     if st.sidebar.button("Move"):
+        data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
         data.turn_track = fx.move_group(data.turn_track,group_to_move,before_or_after,group_to_place)
 elif (selected_group_function == "Move Person to Other Group"):
     person_to_move = st.sidebar.selectbox(
@@ -270,11 +332,10 @@ elif (selected_group_function == "Merge Groups"):
         options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=merge_group_1]
     )
     merged_name = st.sidebar.text_input("New Name",value=f"{merge_group_1} and {merge_group_2}")
-    if st.sidebar.button("Merge"):
-        data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
-        data.turn_track = fx.move_group(data.turn_track,merge_group_1,"After",merge_group_2)
-        data.turn_track = data.turn_track.replace(merge_group_2,merged_name,inplace=True)
+    if st.sidebar.button("Merge"): # TODO BUG Causes turn track to be dropped, related to turn order
         data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
+        data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
+        data.turn_track = data.turn_track.replace(merge_group_2,merged_name,inplace=True)
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",

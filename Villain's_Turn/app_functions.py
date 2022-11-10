@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import random
+import ast
 
 def read_import(path,import_groups=True):
     party = pd.read_csv(path)
@@ -13,10 +14,28 @@ def read_import(path,import_groups=True):
 
 def read_audit(path):
     audit_read = pd.read_csv(path)
-    audit_tags = audit_read[audit_read['Audit Header'].str.contains('tags_')]
-    audit_actions = audit_read.drop(index=audit_tags.index)
-    return (audit_actions.set_index("Audit Header").transpose().reset_index(drop=True),
-                audit_tags.set_index("Audit Header").transpose().reset_index(drop=True))
+
+    audit_tags = audit_read[audit_read['Audit Header'].str.contains('tags_')].reset_index(drop=True)
+    audit_out = audit_read[audit_read['Audit Header'].str.contains('out_')].reset_index(drop=True)
+    audit_meta = audit_read[audit_read['Audit Header'].str.contains('meta_')].reset_index(drop=True)
+    
+    audit_actions = audit_read.drop(index=audit_read[audit_read['Audit Header'].str.contains('tags_')].index)
+    audit_actions = audit_actions.drop(index=audit_read[audit_read['Audit Header'].str.contains('out_')].index)
+    audit_actions = audit_actions.drop(index=audit_read[audit_read['Audit Header'].str.contains('meta_')].index)
+
+    audit_actions.reset_index(drop=True,inplace=True)
+
+    audit_tags['Audit Header'] = audit_tags['Audit Header'].str[5:]
+    audit_out['Audit Header'] = audit_out['Audit Header'].str[4:]
+    audit_meta['Audit Header'] = audit_meta['Audit Header'].str[5:]
+
+    return process_audit(audit_actions), process_audit(audit_out), process_audit(audit_tags), process_audit(audit_meta)
+
+def process_audit(df:pd.DataFrame):
+    df = df.set_index("Audit Header").transpose().reset_index(drop=True)
+    audit_out = {}
+    for col in df.columns : audit_out[col] = df[col].dropna().to_list()
+    return audit_out
 
 def convert_df(df):
    return df.to_csv(index=False).encode('utf-8')
@@ -137,3 +156,47 @@ def previous_turn(groups:pd.DataFrame,current_turn):
         return groups.iloc[-1]['group']
     else:
         return groups.iloc[current_turns_last_index-1]['group']
+
+def attributes_list(groups:pd.DataFrame):
+    df = groups[['name','attributes']].copy()
+    df.dropna(inplace=True)
+    all_attributes = []
+    for index,character in df.iterrows():
+        character_attributes = ast.literal_eval(character['attributes'])
+        for key, values in character_attributes.items() :
+            if type(values) == list :
+                for item in values:
+                    all_attributes.append(f"{character['name']} - {key} - {item}")
+            else :
+                all_attributes.append(f"{character['name']} - {key} - {values}")
+    return all_attributes
+
+def add_audit(audit_trail:pd.DataFrame,turn,source,action,action_number,damage_healing,target,source_add_info,target_add_info,environment):
+    audit_trail.loc[len(audit_trail.index)] = [
+        turn,
+        source,
+        action,
+        action_number,
+        damage_healing,
+        target,
+        source_add_info,
+        target_add_info,
+        environment
+    ]
+
+def parse_result_meta(result):
+    type = 1 # Result name texts
+    target = 2 # self/target/self_group/target_group
+    modification = 3 # info,+,-,/,condition,attribute
+    wording = 4 # modification wording "damage"/"healing"...
+    return type,target,modification,wording
+
+def meta_to_dict(audit_meta):
+    # read lists
+    #
+    return {"Dealt Damage":{
+                "target":"target",
+                "modification":"-",
+                "wording":"damage"
+            }
+    }

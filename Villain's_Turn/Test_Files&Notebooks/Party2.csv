@@ -1,13 +1,13 @@
 name,health,armor_class,initiative,initiative_bonus,team,group,attributes
-Eddard "Ned" Stark,90,13,1,3,Stark,Winterfell,
-Robert Baratheon,90,16,12,3,Stark,Kings Landing,
-Jaime Lannister,90,16,14,3,Lannister,Kings Landing,
-Catelyn Stark,90,16,3,3,Stark,Winterfell,
-Cersei Lannister,90,16,4,3,Lannister,Kings Landing,
-Daenerys Targaryen,90,16,5,3,Targaryen,Nights Watch,
-Jorah Mormont,90,16,6,3,Targaryen,Nights Watch,
-Viserys Targaryen,90,16,7,3,Targaryen,Nights Watch,
-Jon Snow,90,16,10,3,Stark,Nights Watch,
+"Eddard ""Ned"" Stark",90,13,1,3,Stark,Winterfell,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
+Robert Baratheon,90,16,12,3,Stark,Kings Landing,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
+Jaime Lannister,90,16,14,3,Lannister,Kings Landing,"{'weapon': ['dagger','sword','metal hand']}"
+Catelyn Stark,90,16,3,3,Stark,Winterfell,"{'weapon': ['dagger'], 'feats': 'deadman'}"
+Cersei Lannister,90,16,4,3,Lannister,Kings Landing,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
+Daenerys Targaryen,90,16,5,3,Targaryen,Nights Watch,"{'weapon': ['dagger'], 'feats': 'deadman','dragon':['Viserys','Dragon2']}"
+Jorah Mormont,90,16,6,3,Targaryen,Nights Watch,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
+Viserys Targaryen,90,16,7,3,Targaryen,Nights Watch,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
+Jon Snow,90,16,10,3,Stark,Nights Watch,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
 Robb Stark,90,16,10,3,Stark,Winterfell,
-Sansa Stark,90,16,10,3,Stark,Winterfell,
-Arya Stark,90,16,10,3,Stark,Winterfell,
+Sansa Stark,90,16,10,3,Stark,Winterfell,"{'weapon': ['dagger','sword'], 'feats': 'deadman'}"
+Arya Stark,90,16,10,3,Stark,Winterfell,"{'weapon': ['dagger','needle']}"
