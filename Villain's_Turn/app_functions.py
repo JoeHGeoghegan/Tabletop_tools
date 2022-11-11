@@ -184,19 +184,20 @@ def add_audit(audit_trail:pd.DataFrame,turn,source,action,action_number,damage_h
         environment
     ]
 
-def parse_result_meta(result):
-    type = 1 # Result name texts
-    target = 2 # self/target/self_group/target_group
-    modification = 3 # info,+,-,/,condition,attribute
-    wording = 4 # modification wording "damage"/"healing"...
-    return type,target,modification,wording
+def parse_meta_str(meta):
+    meta_list = meta.strip('][').split(',')
+    output = {}
+    output["target"] = meta_list[1]
+    output["modification"] = meta_list[2]
+    output["wording"] = meta_list[3]
+    return meta_list[0],output
 
-def meta_to_dict(audit_meta):
-    # read lists
-    #
-    return {"Dealt Damage":{
-                "target":"target",
-                "modification":"-",
-                "wording":"damage"
-            }
-    }
+def meta_to_dict(audit_meta,key='Results'):
+    output = {}
+    for meta in audit_meta[key]:
+        parse_name, parse_dict = parse_meta_str(meta)
+        output[parse_name] = parse_dict
+    return output
+
+def has_meta(result,meta_lookup:dict):
+    return result in meta_lookup.keys()

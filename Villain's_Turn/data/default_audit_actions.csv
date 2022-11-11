@@ -4,8 +4,8 @@ Main Action,Attacks,Grapples,Shoves,Casts spell,Dashes,Disengages,Dodges,Escapes
 Bonus Action,Offhand Attacks,Casts spell,Uses class feature,,,,,,,,,,,,,,,
 Reaction,Opportunity attacks,Uses Readied action,Casts a spell,,,,,,,,,,,,,,,
 out_Outcome,Succeeds/Hits,Fails/Misses,Hits Critical,,,,,,,,,,,,,,,
-out_Results,Dealt Damage,Dealt Partial Damage,Healing,Disruption,Self Healing,Hurts Self,Self Moves,Target Moves,Buffing,Debuffing,Inflicting Condition,Something Else Happened,,,,,,
+out_Results,Dealt Damage,Dealt Partial Damage,Healing,Disruption,Self Healing,Hurts Self,Buffing,Debuffing,Inflicting Condition,Something Else Happened,Moves Self,Target Moves,,,,,,
 tags_Type,Slashing,Bludgeoning,Piercing,Force,Fire,Cold,Lightning,Thunder,Necrotic,Acid,Poison,Radiant,Psychic,,,,,
 tags_Condition,Breaks Concentration,Enters Concentration,Disruption,Blinded,Charmed,Deafened,Exhaustion,Frightened,Grappled,Incapacitated,Invisible,Paralyzed,Petrified,Poisoned,Prone,Restrained,Stunned,Unconscious
 tags_Environment,Normal Conditions,Lightly obscured,Heavily obscured,Bright light,Dim light,Darkness,Blindsight,Darkvision,Truesight,Half cover,Three-quarters cover,Full cover,,,,,,
-meta_Results,"[Dealt Damage,target,-,damage]","[Dealt Partial Damage,target,-,damage]","[Healing,target,+,health]","[Self Healing,self,+,health]","[Hurts Self,self,-,damage]","[Something Else Happened,"""",/,info]","[Disruption,target_group,disrupt,disrupted]","[Debuffing,target,attribute,applied]","[Buffing,target,attribute,applied]","[Inflicting Condition,target,condition,applied]",,,,,,,,
+meta_Results,"[Dealt Damage,target,-,Damage]","[Dealt Partial Damage,target,-,Damage]","[Healing,target,+,Health]","[Disruption,target_group,disrupt,Disrupted]","[Self Healing,self,+,Health]","[Hurts Self,self,-,Damage]","[Buffing,target,attribute,Applied]","[Debuffing,target,attribute,Applied]","[Inflicting Condition,target,condition,Applied]","[Something Else Happened,target,info,What Happened]",,,,,,,,

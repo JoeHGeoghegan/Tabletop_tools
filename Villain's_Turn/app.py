@@ -24,10 +24,12 @@ class datablock:
         self.turn_track = pd.DataFrame(columns=track_headers)
         self.current_turn = None
         audit_headers = ["turn","source","action","action_number","result","target","source_additional_info","target_additional_info","environment"]  # TODO Catch all info for conditions/environment?
+        # audit_headers = ["turn","action_number","source","action","result","target","source_additional_info","target_additional_info","environment","damage","healing","additional affects"]
         self.audit = pd.DataFrame(columns=audit_headers)
         self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit("data\default_audit_actions.csv")
-        self.meta_keys = fx.meta_to_dict(self.audit_meta)
+        self.meta_lookup = fx.meta_to_dict(self.audit_meta)
         self.turn_number = 0
+        self.action_number = 0
     
     def set_audit(self, path):
         self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit(path)
@@ -46,6 +48,7 @@ with col_image:
 with col_refresh:
     st.button("Refresh")
     st.write(f'Turn #: {data.turn_number}')
+    st.write(f'Action #: {data.action_number}')
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
     if len(data.turn_track) == 0:
@@ -84,7 +87,7 @@ with tabOverview:
                     if len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) > 1 :
                         active_characters = st.multiselect("Active Character(s)", options=data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
                     elif len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) == 1  :
-                        active_characters = data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']
+                        active_characters = [data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'].values[0]]
                     else :
                         st.write("It is no one's turn!")
                     attribute_select_active_characters = []
@@ -118,35 +121,66 @@ with tabOverview:
                 attribute_environment = st.selectbox("Environment Information", options=data.audit_tags['Environment'])
                 outcome = st.selectbox("Outcome",options=data.audit_outcome['Outcome'])
                 results = st.multiselect("Result",options=data.audit_outcome['Results'])
-                action_number = None # TODO add meta parsing - this method won't work/audit well - audit line for each result?
-                
+                results_data=[]
+                action_number = None # TODO remove with Audit 2.0
                 # submitted = st.form_submit_button("Submit Action") # Cannot use form, they do not allow widget updates
                 # if submitted:
                 if st.button("Submit Action"):
-                    fx.add_audit(data.audit,data.turn_number,
+                    fx.submit_action(data.turn_track,results_data)
+                    fx.add_audit(data.audit,data.turn_number,#data.action_number, #TODO Audit 2.0
                         active_characters,
                         action,
-                        action_number,
+                        data.action_number,
                         results,
                         target_characters,
                         attribute_select_active_characters,
                         attribute_select_target_characters,
                         attribute_environment
                     )
+                    data.action_number += 1
             st.markdown("---")
-            # if results != None :
-            #     for result in results :
-                # if has_meta(result):
-                    # result_type,result_target,result_modification,result_wording = fx.parse_result_meta(result)
-
-                    # TODO fill dynamics
-                        # type = Result name texts
-                        # target = self/target/self_group/target_group
-                        # modification = info,+,-,/,condition,attribute
-                        # wording = modification wording "damage"/"healing"...
-    # NOTE Actions from audit + Manual checkbox and allow 2 fillable forms, with audit text preview
-    # TODO damage/healing UI
-    # TODO disruption (similar UI for splitting and moving)
+            if results != None :
+                for result in results :
+                    st.markdown(f"### {result}")
+                    col_result_data, col_result_target = st.columns(2)
+                    meta = data.meta_lookup[result]
+                    if fx.has_meta(result,data.meta_lookup):
+                        with col_result_data:
+                            if meta["modification"] in ['-','+']:
+                                mod_data = st.number_input(meta["wording"],value=0,key=f'data_number_{result}')
+                            elif meta["modification"] == 'attribute':
+                                mod_data = st.multiselect(f'Attribute {meta["wording"]}',options=attribute_select_active_characters,key=f'data_attribute_{result}')
+                            elif meta["modification"] == 'condition':
+                                mod_data = st.multiselect(f'Condition {meta["wording"]}',options=data.audit_tags['Condition'],key=f'data_condition_{result}')
+                            elif meta["modification"] == 'info': # TODO Additional information audit trail col Audit 2.0
+                                mod_data = st.text_area(meta["wording"],key=f'data_info_{result}')
+                            elif meta["modification"] == 'disrupt':
+                                mod_data = st.selectbox("Who is Disrupting (can only be one)",options=active_characters,key=f'data_disrupt_{result}')
+                        with col_result_target:
+                            if meta["target"] == 'target':
+                                target_data = st.multiselect("Specific Target(s)",options=active_characters+target_characters,key=f'target_specifics_{result}')
+                            elif (meta["target"] == 'target_group') and (meta["modification"] == 'disrupt'):
+                                action_group_to_split = st.selectbox("Select Group to Disrupt",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
+                                if(action_group_to_split!=None):
+                                    action_group_to_split_1st = st.text_input("First Half Name",value=f"{action_group_to_split} 1",key=f'target_name1_{result}')
+                                    action_group_to_split_2nd = st.text_input("Second Half Name",value=f"{action_group_to_split} 2",key=f'target_name2_{result}')
+                                    action_group_to_split_df = fx.df_match_slice(data.turn_track,"group",action_group_to_split)
+                                    action_split_decicions = []
+                                    st.write("Where is:")
+                                    for member in action_group_to_split_df['name']:
+                                        action_split_decicions.append(st.select_slider(member,
+                                            options=[action_group_to_split_1st,action_group_to_split_2nd],key=f'target_{member}_{result}'
+                                        ))
+                                target_data = [action_group_to_split,action_split_decicions]
+                            elif (meta["target"] == 'target_group'):
+                                target_data = st.selectbox("Select Group",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
+                            if st.button(f"Confirm Result - {result}"):
+                                results_data.append([
+                                    meta["modification"],
+                                    mod_data,
+                                    target_data
+                                ])
+                        st.markdown("---")
 with tabSettings:
     with st.expander("Turn Tracker Visuals"):
         show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
