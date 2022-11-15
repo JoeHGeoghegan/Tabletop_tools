@@ -180,17 +180,19 @@ def attributes_list(groups:pd.DataFrame):
                 all_attributes.append(f"{character['name']} - {key} - {values}")
     return all_attributes
 
-def add_audit(audit_trail:pd.DataFrame,turn,source,action,action_number,damage_healing,target,source_add_info,target_add_info,environment):
+def add_audit(audit_trail:pd.DataFrame,turn,action_number,source,action,result,target,source_additional_info,target_additional_info,environment,damage,healing,additional_effects):
     audit_trail.loc[len(audit_trail.index)] = [
-        turn,
+        turn, action_number,
         source,
         action,
-        action_number,
-        damage_healing,
+        result,
         target,
-        source_add_info,
-        target_add_info,
-        environment
+        source_additional_info,
+        target_additional_info,
+        environment,
+        damage,
+        healing,
+        additional_effects
     ]
 
 def parse_meta_str(meta):
@@ -212,13 +214,18 @@ def has_meta(result,meta_lookup:dict):
     return result in meta_lookup.keys()
 
 def submit_action(turn_track,results_data,additional_log):
+    damage = []
+    healing = []
     for result in results_data:
         if result[0] in ['+','-'] : adjust_health(turn_track,result[0],result[1],result[2])
         elif result[0] in ['attribute','condition','info'] :
             if additional_log != "" : additional_log += '\n'
             additional_log += add_additional_info(result)
         elif result[0] == 'disrupt' : turn_track = disrupt(turn_track,result[1],result[2])
-    return turn_track, additional_log
+        
+        if result[0] == '+' : damage.append([result[1],result[2]])
+        elif result[0] == '-' : healing.append([result[1],result[2]])
+    return turn_track, additional_log, damage, healing
 
 def adjust_health(turn_track,is_damage,number,target):
     health_mod = 1

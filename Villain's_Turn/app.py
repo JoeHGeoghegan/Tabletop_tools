@@ -23,8 +23,7 @@ class datablock:
         track_headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
         self.turn_track = pd.DataFrame(columns=track_headers)
         self.current_turn = None
-        audit_headers = ["turn","source","action","action_number","result","target","source_additional_info","target_additional_info","environment"]  # TODO Catch all info for conditions/environment?
-        # audit_headers = ["turn","action_number","source","action","result","target","source_additional_info","target_additional_info","environment","damage","healing","additional affects"]
+        audit_headers = ["turn","action_number","source","action","result","target","source_additional_info","target_additional_info","environment","damage","healing","additional_effects"]
         self.audit = pd.DataFrame(columns=audit_headers)
         self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit("data\default_audit_actions.csv")
         self.meta_lookup = fx.meta_to_dict(self.audit_meta)
@@ -47,7 +46,7 @@ col_image, col_refresh = st.columns(2)
 with col_image:
     st.image(".\Images\Villains_turn_logo.png")
 with col_refresh:
-    st.button("Refresh")
+    st.button("Refresh") # TODO Is there a way to make it so we don't need this?
     st.write(f'Turn #: {data.turn_number}')
     st.write(f'Action #: {data.action_number}')
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
@@ -84,6 +83,7 @@ with tabOverview:
             st.markdown("---")
             col_actors, col_action, col_target,col_execute = st.columns(4)
             with col_actors:
+                attribute_select_active_characters = []
                 if st.checkbox("Are there active characters?",value=True):
                     if len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) > 1 :
                         active_characters = st.multiselect("Active Character(s)", options=data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
@@ -91,7 +91,6 @@ with tabOverview:
                         active_characters = [data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'].values[0]]
                     else :
                         st.write("It is no one's turn!")
-                    attribute_select_active_characters = []
                     if st.checkbox("Specify Attributes?",key="active_characters_specify"):
                         attribute_select_active_characters = []
                         for character in active_characters:
@@ -107,9 +106,9 @@ with tabOverview:
                 else :
                     action = st.text_area('What occured?')
             with col_target:
+                attribute_select_target_characters = []
                 if st.checkbox("Are there target characters?",value=True):
                     target_characters = st.multiselect("Target Character(s)", options=data.turn_track['name'])
-                    attribute_select_target_characters = []
                     if st.checkbox("Specify Attributes?",key="target_characters_specify"):
                         attribute_select_target_characters = []
                         for character in target_characters:
@@ -122,24 +121,25 @@ with tabOverview:
                 attribute_environment = st.selectbox("Environment Information", options=data.audit_tags['Environment'])
                 outcome = st.selectbox("Outcome",options=data.audit_outcome['Outcome'])
                 results = st.multiselect("Result",options=data.audit_outcome['Results'])
-                action_number = None # TODO remove with Audit 2.0
                 st.write(f'Confirmed Actions: {data.results_data}')
                 # submitted = st.form_submit_button("Submit Action") # Cannot use form, they do not allow widget updates
                 # if submitted:
                 if st.button("Submit Action"):
                     additional_log = ""
-                    data.turn_track, additional_log = fx.submit_action(data.turn_track,data.results_data,additional_log)
-                    fx.add_audit(data.audit,data.turn_number,#data.action_number, #TODO Audit 2.0
-                        active_characters,
-                        action,
-                        data.action_number,
-                        results,
-                        target_characters,
-                        attribute_select_active_characters,
-                        attribute_select_target_characters,
-                        attribute_environment
-                        # TODO add additional log # TODO Audit 2.0
-                    )
+                    data.turn_track, additional_log, damage, healing = fx.submit_action(data.turn_track,data.results_data,additional_log)
+                    fx.add_audit(data.audit,
+                        data.turn_number,data.action_number, # turn, action_number
+                        active_characters, # source
+                        action, # action
+                        results, # result
+                        target_characters, # target
+                        attribute_select_active_characters, # source_additional_info
+                        attribute_select_target_characters, # target_additional_info
+                        attribute_environment, # environment
+                        damage, # damage
+                        healing, # healing
+                        additional_log # additional_effects
+                        )
                     data.results_data = []
                     data.action_number += 1
             st.markdown("---")
@@ -157,14 +157,18 @@ with tabOverview:
                                 mod_data = st.multiselect(f'Attribute {meta["wording"]}',options=attribute_select_active_characters,key=f'data_attribute_{result}')
                             elif meta["modification"] == 'condition':
                                 mod_data = st.multiselect(f'Condition {meta["wording"]}',options=data.audit_tags['Condition'],key=f'data_condition_{result}')
-                            elif meta["modification"] == 'info': # TODO Additional information audit trail col Audit 2.0
+                            elif meta["modification"] == 'info':
                                 mod_data = st.text_area(meta["wording"],key=f'data_info_{result}')
                             elif meta["modification"] == 'disrupt':
                                 mod_data = st.selectbox("Who is Disrupting (can only be one)",options=active_characters,key=f'data_disrupt_{result}')
                         with col_result_target:
                             target_data = st.empty()
-                            if meta["target"] == 'target':
-                                target_data = st.multiselect("Specific Target(s)",options=active_characters+target_characters,key=f'target_specifics_{result}')
+                            if meta["target"] == 'self' : target_data = active_characters
+                            elif meta["target"] == 'target':
+                                if type(active_characters)==str : targets = target_characters
+                                elif type(target_characters)==str : targets = active_characters
+                                else : targets = active_characters + target_characters
+                                target_data = st.multiselect("Specific Target(s)",options=targets,key=f'target_specifics_{result}')
                             elif (meta["target"] == 'target_group') and (meta["modification"] == 'disrupt'):
                                 action_group_to_split = st.selectbox("Select Group to Disrupt",
                                                             options=fx.multi_person_groups_list(data.turn_track),
@@ -199,7 +203,7 @@ with tabSettings:
             show_team = st.checkbox('Show Teams',value=True)
             show_group = st.checkbox('Show Combat Groups',value=True)
             show_attributes = st.checkbox('Show Additional Attributes')
-    with st.expander("Audit Settings"): #TODO Expand on settings/Export
+    with st.expander("Audit Settings"): #TODO Expand on settings/Export, Damage/healing only download without lists
         st.download_button(
             "Press to Download Default Action Configuration",
             fx.convert_df(pd.read_csv(".\data\default_audit_actions.csv")),
@@ -259,7 +263,7 @@ with tabImportExport:
             export_file_team,
             "text/csv"
         )
-with tabModifications:
+with tabModifications: # TODO Add audit events? 'Something else happened' stuff?
     selected_modification = st.selectbox(
         "What do you want to Modify",
         options=["Select Function","Add Person","Remove Person/Team","Change Initiatives"]
@@ -374,10 +378,10 @@ elif (selected_group_function == "Merge Groups"):
         options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=merge_group_1]
     )
     merged_name = st.sidebar.text_input("New Name",value=f"{merge_group_1} and {merge_group_2}")
-    if st.sidebar.button("Merge"): # TODO BUG Causes turn track to be dropped, related to turn order
+    if st.sidebar.button("Merge"):
         data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
         data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
-        data.turn_track = data.turn_track.replace(merge_group_2,merged_name,inplace=True)
+        data.turn_track.replace(merge_group_2,merged_name,inplace=True)
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",
