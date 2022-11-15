@@ -80,6 +80,15 @@ def character_list(turn_track:pd.DataFrame):
 def team_list(turn_track:pd.DataFrame):
     return(turn_track['team'].unique())
 
+def person_is_alone(groups:pd.DataFrame,person):
+    group_name = groups[groups['name'] == person]['group'].values[0]
+    return len(groups[groups['group']==group_name]) == 1
+
+def multi_person_groups_list(groups):
+    multi_person_groups_mask = [len(groups[groups['group']==x]) != 1 for x in groups['group'].unique()]
+    multi_person_groups = groups['group'].unique()[multi_person_groups_mask]
+    return multi_person_groups
+
 def groups_gathered_check(groups:pd.DataFrame):
     order_list = groups_list(groups)
     team_changes = groups["group"].shift() != groups["group"]
@@ -88,7 +97,7 @@ def groups_gathered_check(groups:pd.DataFrame):
 def df_match_slice(df:pd.DataFrame,column,match):
     return df[df[column]==match]
 
-def df_set_match_slice(df:pd.DataFrame,column,match,new_data):
+def df_set_slice(df:pd.DataFrame,column,match,new_data):
     df_slice = df[df[column] == match].copy()
     df_slice[column] = new_data
     df_copy = df.copy()
@@ -201,3 +210,29 @@ def meta_to_dict(audit_meta,key='Results'):
 
 def has_meta(result,meta_lookup:dict):
     return result in meta_lookup.keys()
+
+def submit_action(turn_track,results_data,additional_log):
+    for result in results_data:
+        if result[0] in ['+','-'] : adjust_health(turn_track,result[0],result[1],result[2])
+        elif result[0] in ['attribute','condition','info'] :
+            if additional_log != "" : additional_log += '\n'
+            additional_log += add_additional_info(result)
+        elif result[0] == 'disrupt' : turn_track = disrupt(turn_track,result[1],result[2])
+    return turn_track, additional_log
+
+def adjust_health(turn_track,is_damage,number,target):
+    health_mod = 1
+    if is_damage == "-" : health_mod = -1
+    turn_track.loc[turn_track['name'].isin(target),'health'] += (health_mod * number)
+
+def add_additional_info(result):
+    return f'{result[0]} -> {result[2]} : {result[1]}'
+
+def disrupt(turn_track,disruptor,disrupted_info):
+    group_to_split = disrupted_info[0]
+    group_name_1 = disrupted_info[1]
+    split_decicions = disrupted_info[2]
+    turn_track = df_set_slice(turn_track,"group",group_to_split,split_decicions)
+    turn_track = move_character_to_new_group(turn_track, disruptor, disruptor)
+    turn_track = move_group(turn_track,disruptor,"After",group_name_1)
+    return turn_track

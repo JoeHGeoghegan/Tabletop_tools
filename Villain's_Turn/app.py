@@ -30,6 +30,7 @@ class datablock:
         self.meta_lookup = fx.meta_to_dict(self.audit_meta)
         self.turn_number = 0
         self.action_number = 0
+        self.results_data = []
     
     def set_audit(self, path):
         self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit(path)
@@ -121,12 +122,13 @@ with tabOverview:
                 attribute_environment = st.selectbox("Environment Information", options=data.audit_tags['Environment'])
                 outcome = st.selectbox("Outcome",options=data.audit_outcome['Outcome'])
                 results = st.multiselect("Result",options=data.audit_outcome['Results'])
-                results_data=[]
                 action_number = None # TODO remove with Audit 2.0
+                st.write(f'Confirmed Actions: {data.results_data}')
                 # submitted = st.form_submit_button("Submit Action") # Cannot use form, they do not allow widget updates
                 # if submitted:
                 if st.button("Submit Action"):
-                    fx.submit_action(data.turn_track,results_data)
+                    additional_log = ""
+                    data.turn_track, additional_log = fx.submit_action(data.turn_track,data.results_data,additional_log)
                     fx.add_audit(data.audit,data.turn_number,#data.action_number, #TODO Audit 2.0
                         active_characters,
                         action,
@@ -136,7 +138,9 @@ with tabOverview:
                         attribute_select_active_characters,
                         attribute_select_target_characters,
                         attribute_environment
+                        # TODO add additional log # TODO Audit 2.0
                     )
+                    data.results_data = []
                     data.action_number += 1
             st.markdown("---")
             if results != None :
@@ -146,6 +150,7 @@ with tabOverview:
                     meta = data.meta_lookup[result]
                     if fx.has_meta(result,data.meta_lookup):
                         with col_result_data:
+                            mod_data = st.empty()
                             if meta["modification"] in ['-','+']:
                                 mod_data = st.number_input(meta["wording"],value=0,key=f'data_number_{result}')
                             elif meta["modification"] == 'attribute':
@@ -157,10 +162,13 @@ with tabOverview:
                             elif meta["modification"] == 'disrupt':
                                 mod_data = st.selectbox("Who is Disrupting (can only be one)",options=active_characters,key=f'data_disrupt_{result}')
                         with col_result_target:
+                            target_data = st.empty()
                             if meta["target"] == 'target':
                                 target_data = st.multiselect("Specific Target(s)",options=active_characters+target_characters,key=f'target_specifics_{result}')
                             elif (meta["target"] == 'target_group') and (meta["modification"] == 'disrupt'):
-                                action_group_to_split = st.selectbox("Select Group to Disrupt",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
+                                action_group_to_split = st.selectbox("Select Group to Disrupt",
+                                                            options=fx.multi_person_groups_list(data.turn_track),
+                                                            key=f'target_group_{result}')
                                 if(action_group_to_split!=None):
                                     action_group_to_split_1st = st.text_input("First Half Name",value=f"{action_group_to_split} 1",key=f'target_name1_{result}')
                                     action_group_to_split_2nd = st.text_input("Second Half Name",value=f"{action_group_to_split} 2",key=f'target_name2_{result}')
@@ -171,11 +179,11 @@ with tabOverview:
                                         action_split_decicions.append(st.select_slider(member,
                                             options=[action_group_to_split_1st,action_group_to_split_2nd],key=f'target_{member}_{result}'
                                         ))
-                                target_data = [action_group_to_split,action_split_decicions]
+                                target_data = [action_group_to_split,action_group_to_split_1st,action_split_decicions]
                             elif (meta["target"] == 'target_group'):
                                 target_data = st.selectbox("Select Group",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
                             if st.button(f"Confirm Result - {result}"):
-                                results_data.append([
+                                data.results_data.append([
                                     meta["modification"],
                                     mod_data,
                                     target_data
@@ -373,7 +381,7 @@ elif (selected_group_function == "Merge Groups"):
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",
-        options=fx.groups_list(data.turn_track)
+        options=fx.multi_person_groups_list(data.turn_track)
     )
     if(group_to_split!=None):
         group_to_split_1st = st.sidebar.text_input("First Half Name",value=f"{group_to_split} 1")
@@ -385,9 +393,8 @@ elif (selected_group_function == "Split Group"):
         st.sidebar.write("Where is:")
         for member in group_to_split_df['name']:
             split_decicions.append(st.sidebar.select_slider(member,options=[group_to_split_1st,group_to_split_2nd]))
-        # st.sidebar.write(split_decicions)
         if st.sidebar.button("Split") :
-            data.turn_track = fx.df_set_match_slice(data.turn_track,"group",group_to_split,split_decicions)
+            data.turn_track = fx.df_set_slice(data.turn_track,"group",group_to_split,split_decicions)
 elif (selected_group_function == "Change Group Name"):
     # select group, new name fields and a button which uses pd's replace
     group_to_rename = st.sidebar.selectbox(
