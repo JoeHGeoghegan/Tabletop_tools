@@ -17,8 +17,6 @@ import app_functions as fx
 st.set_page_config(layout="wide")
 @dataclass
 class datablock:
-    turn_track:pd.DataFrame
-
     def __init__(self):
         track_headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
         self.turn_track = pd.DataFrame(columns=track_headers)
@@ -51,14 +49,18 @@ with col_refresh:
     st.write(f'Action #: {data.action_number}')
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
+    # Checks to ensure data is able to be displayed
     if len(data.turn_track) == 0:
         st.write("Welcome! Add Characters in the Modifications tab or Import an exisiting Villain's Turn csv to get started!")
     elif not fx.groups_gathered_check(data.turn_track) :
         st.write("Groups are not gathered, move groups to desired order or reset initiative")
     else :
+        # Turn tracking start up
         if data.current_turn==None or not (data.current_turn in fx.groups_list(data.turn_track)):
             data.current_turn = data.turn_track.iloc[0]['group']
         current_group = data.turn_track.loc[data.turn_track['group']==data.current_turn]
+
+        # Turn Track displays
         col_current_turn, col_on_deck, col_turn_controls = st.columns(3)
         with col_current_turn:
             st.write(f"{data.current_turn}'s turn")
@@ -78,39 +80,48 @@ with tabOverview:
             if st.button("Jump to Turn"):
                 data.current_turn = turn_jump
                 data.turn_number = 0
+        
+        # Combat Interface
         if st.checkbox("Show Combat - Toggle to clear values",value=True):
             # with st.form("Combat_form",clear_on_submit=True):
             st.markdown("---")
             col_actors, col_action, col_target,col_execute = st.columns(4)
+            # Active Character
             with col_actors:
                 attribute_select_active_characters = []
                 if st.checkbox("Are there active characters?",value=True):
+                    # Single/Multi Character Handling
                     if len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) > 1 :
                         active_characters = st.multiselect("Active Character(s)", options=data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
                     elif len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) == 1  :
                         active_characters = [data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'].values[0]]
-                    else :
+                    else : # Error catch, "should" never happen
                         st.write("It is no one's turn!")
+                    # Attribute specifications
                     if st.checkbox("Specify Attributes?",key="active_characters_specify"):
-                        attribute_select_active_characters = []
+                        attribute_select_active_characters = [] # TODO BUG this doesn't seem to be working all the time?
                         for character in active_characters:
                             attribute_select_active_characters.append(st.checkbox(f'Select Attributes of {character}?'))
                         if all(attribute_select_active_characters) :
                             st.multiselect("Select Attributes", options = fx.attributes_list(current_group.loc[attribute_select_active_characters]))
                 else :
                     active_characters = st.text_area(f'What is causing the action?')
+            # Action
             with col_action:
                 if st.checkbox("Standard Action",value=True):
                     action_subject = st.selectbox("Action Type", options=data.audit_actions.keys())
                     action = st.selectbox(f"{action_subject} Submenu", options=data.audit_actions[action_subject])
                 else :
                     action = st.text_area('What occured?')
+            # Target Character
             with col_target:
                 attribute_select_target_characters = []
                 if st.checkbox("Are there target characters?",value=True):
+                    # Multi Character Handling Only
                     target_characters = st.multiselect("Target Character(s)", options=data.turn_track['name'])
+                    # Attribute specifications
                     if st.checkbox("Specify Attributes?",key="target_characters_specify"):
-                        attribute_select_target_characters = []
+                        attribute_select_target_characters = [] # TODO BUG this doesn't seem to be working all the time?
                         for character in target_characters:
                             attribute_select_target_characters.append(st.checkbox(f'Select Attributes of {character}?'))
                         if all(attribute_select_target_characters) :
@@ -121,10 +132,12 @@ with tabOverview:
                 attribute_environment = st.selectbox("Environment Information", options=data.audit_tags['Environment'])
                 outcome = st.selectbox("Outcome",options=data.audit_outcome['Outcome'])
                 results = st.multiselect("Result",options=data.audit_outcome['Results'])
+                # Writes list of confirmed actions
                 st.write(f'Confirmed Actions: {data.results_data}')
                 # submitted = st.form_submit_button("Submit Action") # Cannot use form, they do not allow widget updates
                 # if submitted:
                 if st.button("Submit Action"):
+                    # creates an additional log, submits action and adds to audit
                     additional_log = ""
                     data.turn_track, additional_log, damage, healing = fx.submit_action(data.turn_track,data.results_data,additional_log)
                     fx.add_audit(data.audit,
@@ -143,6 +156,7 @@ with tabOverview:
                     data.results_data = []
                     data.action_number += 1
             st.markdown("---")
+            # Dynamic Meta Data handling
             if results != None :
                 for result in results :
                     st.markdown(f"### {result}")
@@ -150,6 +164,7 @@ with tabOverview:
                     meta = data.meta_lookup[result]
                     if fx.has_meta(result,data.meta_lookup):
                         with col_result_data:
+                            # Fills mod_data with correct input depending on need
                             mod_data = st.empty()
                             if meta["modification"] in ['-','+']:
                                 mod_data = st.number_input(meta["wording"],value=0,key=f'data_number_{result}')
@@ -162,6 +177,7 @@ with tabOverview:
                             elif meta["modification"] == 'disrupt':
                                 mod_data = st.selectbox("Who is Disrupting (can only be one)",options=active_characters,key=f'data_disrupt_{result}')
                         with col_result_target:
+                            # Fills target_data with correct input depending on need
                             target_data = st.empty()
                             if meta["target"] == 'self' : target_data = active_characters
                             elif meta["target"] == 'target':
@@ -170,6 +186,7 @@ with tabOverview:
                                 else : targets = active_characters + target_characters
                                 target_data = st.multiselect("Specific Target(s)",options=targets,key=f'target_specifics_{result}')
                             elif (meta["target"] == 'target_group') and (meta["modification"] == 'disrupt'):
+                                # Disrupt handling
                                 action_group_to_split = st.selectbox("Select Group to Disrupt",
                                                             options=fx.multi_person_groups_list(data.turn_track),
                                                             key=f'target_group_{result}')
@@ -185,6 +202,7 @@ with tabOverview:
                                         ))
                                 target_data = [action_group_to_split,action_group_to_split_1st,action_split_decicions]
                             elif (meta["target"] == 'target_group'):
+                                # Target group handling
                                 target_data = st.selectbox("Select Group",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
                             if st.button(f"Confirm Result - {result}"):
                                 data.results_data.append([
@@ -195,6 +213,7 @@ with tabOverview:
                         st.markdown("---")
 with tabSettings:
     with st.expander("Turn Tracker Visuals"):
+        # Modify settings to change what is shown
         show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
         if show_turn_tracker:
             show_health = st.checkbox('Show Health')
@@ -204,6 +223,7 @@ with tabSettings:
             show_group = st.checkbox('Show Combat Groups',value=True)
             show_attributes = st.checkbox('Show Additional Attributes')
     with st.expander("Audit Settings"): #TODO Expand on settings/Export, Damage/healing only download without lists
+        # Audit downloads/settings
         st.download_button(
             "Press to Download Default Action Configuration",
             fx.convert_df(pd.read_csv(".\data\default_audit_actions.csv")),
