@@ -195,6 +195,11 @@ def add_audit(audit_trail:pd.DataFrame,turn,action_number,source,action,result,t
         additional_effects
     ]
 
+def add_audit_note(audit_trail:pd.DataFrame,turn,action_number,note):
+    add_audit(audit_trail,turn,action_number,"","","","","","","","","",note)
+def add_audit_character_note(audit_trail:pd.DataFrame,turn,action_number,character,note):
+    add_audit(audit_trail,turn,action_number,character,"","","","","","","","",note)
+
 def parse_meta_str(meta):
     meta_list = meta.strip('][').split(',')
     output = {}
@@ -223,14 +228,16 @@ def submit_action(turn_track,results_data,additional_log):
             additional_log += add_additional_info(result)
         elif result[0] == 'disrupt' : turn_track = disrupt(turn_track,result[1],result[2])
         
-        if result[0] == '+' : damage.append([result[1],result[2]])
-        elif result[0] == '-' : healing.append([result[1],result[2]])
+        if result[0] == '-' : damage.append([result[1],result[2]])
+        elif result[0] == '+' : healing.append([result[1],result[2]])
     return turn_track, additional_log, damage, healing
 
-def adjust_health(turn_track,is_damage,number,target):
+def adjust_health(turn_track,is_damage,numbers,target):
     health_mod = 1
     if is_damage == "-" : health_mod = -1
-    turn_track.loc[turn_track['name'].isin(target),'health'] += (health_mod * number)
+    for number in numbers :
+        value = number[1]
+        turn_track.loc[turn_track['name'].isin(target),'health'] += (health_mod * value)
 
 def add_additional_info(result):
     return f'{result[0]} -> {result[2]} : {result[1]}'
@@ -243,3 +250,35 @@ def disrupt(turn_track,disruptor,disrupted_info):
     turn_track = move_character_to_new_group(turn_track, disruptor, disruptor)
     turn_track = move_group(turn_track,disruptor,"After",group_name_1)
     return turn_track
+
+def split_column_list(df,column_name,new_axis_names):
+    df[new_axis_names] = pd.DataFrame(df[column_name].to_list(),index=df.index)
+    df.drop(columns=column_name,inplace=True)
+
+def col_list_every_action(df,column_name,drop_cols):
+    df_split = df.explode(column_name)
+    df_split.dropna(inplace=True)
+    df_split.drop(columns=drop_cols,inplace=True)
+    split_column_list(df_split,column_name,['sources','target'])
+    df_split = df_split.explode('sources')
+    split_column_list(df_split,'sources',['source',column_name])
+    return df_split
+
+def col_str_every_action(df,column_name,drop_cols):
+    df_split = df.copy()
+    df_split.drop(df_split[df_split[column_name]==''].index,inplace=True)
+    df_split.drop(columns=drop_cols,inplace=True)
+    df_split['additional_effects'] = df_split['additional_effects'].str.split('\n')
+    df_split = df_split.explode('additional_effects').reset_index(drop=True)
+    df_split.drop(df_split[df_split[column_name]==''].index,inplace=True)
+    return df_split
+
+def audit_every_action_df(audit:pd.DataFrame):
+    action_df = audit.copy()[["turn","action_number","damage","healing","additional_effects"]]
+    concat_list = []
+    if not all(action_df['damage'].eq('')) : concat_list.append(col_list_every_action(action_df,'damage',['healing','additional_effects']))
+    if not all(action_df['healing'].eq('')) : concat_list.append(col_list_every_action(action_df,'healing',['damage','additional_effects']))
+    if not all(action_df['additional_effects'].eq('')) : concat_list.append(col_str_every_action(action_df,'additional_effects',['damage','healing']))
+    
+    if len(concat_list) : return pd.concat(concat_list,ignore_index=True).sort_values(by=["turn","action_number"])
+    return pd.DataFrame(columns=['turn','action_number','source','damage','healing','additional_effects'])
