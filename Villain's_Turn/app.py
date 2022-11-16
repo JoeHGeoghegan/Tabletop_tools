@@ -1,86 +1,86 @@
 # Imports
-from inspect import Attribute
 import streamlit as st
+from streamlit import session_state as ss
 import pandas as pd
-import numpy as np
 from dataclasses import dataclass
+from streamlit_autorefresh import st_autorefresh
 
 ###############################
 ########## Functions ##########
 ###############################
 # Function imports
 import app_functions as fx
-
 ###############################
 ######## Steamlit Data ########
 ###############################
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Villain's Turn", page_icon="🦹",layout="wide")
 @dataclass
 class datablock:
     def __init__(self):
         track_headers = ["name","health","armor_class","initiative","initiative_bonus","team","group","attributes"]
-        self.turn_track = pd.DataFrame(columns=track_headers)
-        self.current_turn = None
+        ss.turn_track = pd.DataFrame(columns=track_headers)
+        ss.current_turn = None
         audit_headers = ["turn","action_number","source","action","result","target","source_additional_info","target_additional_info","environment","damage","healing","additional_effects"]
-        self.audit = pd.DataFrame(columns=audit_headers)
-        self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit("data\default_audit_actions.csv")
-        self.meta_lookup = fx.meta_to_dict(self.audit_meta)
-        self.turn_number = 0
-        self.action_number = 0
-        self.results_data = []
-        self.audit_combat = True
-        self.audit_changes = True
+        ss.audit = pd.DataFrame(columns=audit_headers)
+        ss.audit_actions,ss.audit_outcome, ss.audit_tags, ss.audit_meta = fx.read_audit("data\default_audit_actions.csv")
+        ss.meta_lookup = fx.meta_to_dict(ss.audit_meta)
+        ss.turn_number = 0
+        ss.action_number = 0
+        ss.results_data = []
+        ss.audit_combat = True
+        ss.audit_changes = True
+        ss.count = 0
     def set_audit(self, path):
-        self.audit_actions,self.audit_outcome, self.audit_tags, self.audit_meta = fx.read_audit(path)
+        ss.audit_actions,ss.audit_outcome, ss.audit_tags, ss.audit_meta = fx.read_audit(path)
 
 @st.cache(allow_output_mutation=True)
 def setup():
     return datablock()
 data = setup()
-
 ################################
 ######## Streamlit Code ########
 ################################
+ss.count = st_autorefresh(interval=1000, key="runtime_counter")
 col_image, col_refresh = st.columns(2)
 with col_image:
     st.image(".\Images\Villains_turn_logo.png")
 with col_refresh:
-    st.button("Refresh") # TODO Is there a way to make it so we don't need this?
-    st.write(f'Turn #: {data.turn_number}')
-    st.write(f'Action #: {data.action_number}')
+    # st.write(f'Runtime: {int(ss.count/60)} minutes {ss.count%60} seconds')
+    st.write(f'Turn #: {ss.turn_number}')
+    st.write(f'Action #: {ss.action_number}')
 tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
 with tabOverview:
     # Checks to ensure data is able to be displayed
-    if len(data.turn_track) == 0:
+    if len(ss.turn_track) == 0:
         st.write("Welcome! Add Characters in the Modifications tab or Import an exisiting Villain's Turn csv to get started!")
-    elif not fx.groups_gathered_check(data.turn_track) :
+    elif not fx.groups_gathered_check(ss.turn_track) :
         st.write("Groups are not gathered, move groups to desired order or reset initiative")
     else :
         # Turn tracking start up
-        if data.current_turn==None or not (data.current_turn in fx.groups_list(data.turn_track)):
-            data.current_turn = data.turn_track.iloc[0]['group']
-        current_group = data.turn_track.loc[data.turn_track['group']==data.current_turn]
+        if ss.current_turn==None or not (ss.current_turn in fx.groups_list(ss.turn_track)):
+            ss.current_turn = ss.turn_track.iloc[0]['group']
+        current_group = ss.turn_track.loc[ss.turn_track['group']==ss.current_turn]
 
         # Turn Track displays
         col_current_turn, col_on_deck, col_turn_controls = st.columns(3)
         with col_current_turn:
-            st.write(f"{data.current_turn}'s turn")
+            st.write(f"{ss.current_turn}'s turn")
             st.write(current_group['name'])
         with col_on_deck:
-            next_turn = fx.next_turn(data.turn_track,data.current_turn)
+            next_turn = fx.next_turn(ss.turn_track,ss.current_turn)
             st.write(f"{next_turn} is on deck")
-            st.write(data.turn_track.loc[data.turn_track['group']==next_turn,'name'])
+            st.write(ss.turn_track.loc[ss.turn_track['group']==next_turn,'name'])
         with col_turn_controls:
             if st.button("Next Turn"):
-                data.current_turn = next_turn
-                data.turn_number += 1
+                ss.current_turn = next_turn
+                ss.turn_number += 1
             if st.button("Previous Turn"):
-                data.current_turn = fx.previous_turn(data.turn_track,data.current_turn)
-                data.turn_number -= 1
-            turn_jump = st.selectbox("Jump to Turn",options=fx.groups_list(data.turn_track))
+                ss.current_turn = fx.previous_turn(ss.turn_track,ss.current_turn)
+                ss.turn_number -= 1
+            turn_jump = st.selectbox("Jump to Turn",options=fx.groups_list(ss.turn_track))
             if st.button("Jump to Turn"):
-                data.current_turn = turn_jump
-                data.turn_number = 0
+                ss.current_turn = turn_jump
+                ss.turn_number = 0
         
         # Combat Interface
         # Would be nice to do this with a form but forms stop the internal widgets from being modified
@@ -92,10 +92,10 @@ with tabOverview:
                 attribute_select_active_characters = []
                 if st.checkbox("Are there active characters?",value=True):
                     # Single/Multi Character Handling
-                    if len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) > 1 :
-                        active_characters = st.multiselect("Active Character(s)", options=data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'])
-                    elif len(data.turn_track.loc[data.turn_track['group']==data.current_turn,'name']) == 1  :
-                        active_characters = [data.turn_track.loc[data.turn_track['group']==data.current_turn,'name'].values[0]]
+                    if len(ss.turn_track.loc[ss.turn_track['group']==ss.current_turn,'name']) > 1 :
+                        active_characters = st.multiselect("Active Character(s)", options=ss.turn_track.loc[ss.turn_track['group']==ss.current_turn,'name'])
+                    elif len(ss.turn_track.loc[ss.turn_track['group']==ss.current_turn,'name']) == 1  :
+                        active_characters = [ss.turn_track.loc[ss.turn_track['group']==ss.current_turn,'name'].values[0]]
                     else : # Error catch, "should" never happen
                         st.write("It is no one's turn!")
                     # Attribute specifications
@@ -108,8 +108,8 @@ with tabOverview:
             # Action
             with col_action:
                 if st.checkbox("Standard Action",value=True):
-                    action_subject = st.selectbox("Action Type", options=data.audit_actions.keys())
-                    action = st.multiselect(f"{action_subject} Submenu", options=data.audit_actions[action_subject])
+                    action_subject = st.selectbox("Action Type", options=ss.audit_actions.keys())
+                    action = st.multiselect(f"{action_subject} Submenu", options=ss.audit_actions[action_subject])
                 else :
                     action = st.text_area('What occured?')
             # Target Character
@@ -117,26 +117,26 @@ with tabOverview:
                 attribute_select_target_characters = []
                 if st.checkbox("Are there target characters?",value=True):
                     # Multi Character Handling Only
-                    target_characters = st.multiselect("Target Character(s)", options=data.turn_track['name'])
+                    target_characters = st.multiselect("Target Character(s)", options=ss.turn_track['name'])
                     # Attribute specifications
                     if st.checkbox("Specify Attributes?",key="target_characters_specify"):
                         attribute_select_target_characters = st.multiselect("Select Attributes",
-                            options = fx.attributes_list(data.turn_track[data.turn_track['name'].isin(target_characters)])
+                            options = fx.attributes_list(ss.turn_track[ss.turn_track['name'].isin(target_characters)])
                         )
                 else :
                     target_characters = st.text_area(f'What occured with the {action}')
             with col_execute:
-                attribute_environment = st.selectbox("Environment Information", options=data.audit_tags['Environment'])
-                outcome = st.selectbox("Outcome",options=data.audit_outcome['Outcome'])
-                results = st.multiselect("Result",options=data.audit_outcome['Results'])
+                attribute_environment = st.selectbox("Environment Information", options=ss.audit_tags['Environment'])
+                outcome = st.selectbox("Outcome",options=ss.audit_outcome['Outcome'])
+                results = st.multiselect("Result",options=ss.audit_outcome['Results'])
                 # Writes list of confirmed actions
-                st.write(f'Confirmed Actions: {data.results_data}')
+                st.write(f'Confirmed Actions: {ss.results_data}')
                 if st.button("Submit Action"):
                     # creates an additional log, submits action and adds to audit
                     additional_log = ""
-                    data.turn_track, data.current_turn, additional_log, damage, healing = fx.submit_action(data.turn_track,data.current_turn,data.results_data,additional_log)
-                    if data.audit_combat : fx.add_audit(data.audit,
-                        data.turn_number,data.action_number, # turn, action_number
+                    ss.turn_track, ss.current_turn, additional_log, damage, healing = fx.submit_action(ss.turn_track,ss.current_turn,ss.results_data,additional_log)
+                    if ss.audit_combat : fx.add_audit(ss.audit,
+                        ss.turn_number,ss.action_number, # turn, action_number
                         active_characters, # source
                         action, # action
                         results, # result
@@ -148,16 +148,16 @@ with tabOverview:
                         healing, # healing
                         additional_log # additional_effects
                         )
-                    data.results_data = []
-                    data.action_number += 1
+                    ss.results_data = []
+                    ss.action_number += 1
             st.markdown("---")
             # Dynamic Meta Data handling
             if results != None :
                 for result in results :
                     st.markdown(f"### {result}")
                     col_result_data, col_result_target = st.columns(2)
-                    if fx.has_meta(result,data.meta_lookup):
-                        meta = data.meta_lookup[result]
+                    if fx.has_meta(result,ss.meta_lookup):
+                        meta = ss.meta_lookup[result]
                         with col_result_data:
                             # Fills mod_data with correct input depending on need
                             mod_data = st.empty()
@@ -169,7 +169,7 @@ with tabOverview:
                             elif meta["modification"] == 'attribute':
                                 mod_data = st.multiselect(f'Attribute {meta["wording"]}',options=attribute_select_active_characters,key=f'data_attribute_{result}')
                             elif meta["modification"] == 'condition':
-                                mod_data = st.multiselect(f'Condition {meta["wording"]}',options=data.audit_tags['Condition'],key=f'data_condition_{result}')
+                                mod_data = st.multiselect(f'Condition {meta["wording"]}',options=ss.audit_tags['Condition'],key=f'data_condition_{result}')
                             elif meta["modification"] == 'info':
                                 mod_data = st.text_area(meta["wording"],key=f'data_info_{result}')
                             elif meta["modification"] == 'disrupt':
@@ -186,12 +186,12 @@ with tabOverview:
                             elif (meta["target"] == 'target_group') and (meta["modification"] == 'disrupt'):
                                 # Disrupt handling
                                 action_group_to_split = st.selectbox("Select Group to Disrupt",
-                                                            options=fx.multi_person_groups_list(data.turn_track),
+                                                            options=fx.multi_person_groups_list(ss.turn_track),
                                                             key=f'target_group_{result}')
                                 if(action_group_to_split!=None):
                                     action_group_to_split_1st = st.text_input("First Half Name",value=f"{action_group_to_split} 1",key=f'target_name1_{result}')
                                     action_group_to_split_2nd = st.text_input("Second Half Name",value=f"{action_group_to_split} 2",key=f'target_name2_{result}')
-                                    action_group_to_split_df = fx.df_match_slice(data.turn_track,"group",action_group_to_split)
+                                    action_group_to_split_df = fx.df_match_slice(ss.turn_track,"group",action_group_to_split)
                                     action_split_decicions = []
                                     st.write("Where is:")
                                     for member in action_group_to_split_df['name']:
@@ -201,9 +201,9 @@ with tabOverview:
                                 target_data = [action_group_to_split,action_group_to_split_1st,action_split_decicions,action_group_to_split_2nd]
                             elif (meta["target"] == 'target_group'):
                                 # Target group handling
-                                target_data = st.selectbox("Select Group",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
+                                target_data = st.selectbox("Select Group",options=fx.groups_list(ss.turn_track),key=f'target_group_{result}')
                             if st.button(f"Confirm Result - {result}"):
-                                data.results_data.append([
+                                ss.results_data.append([
                                     meta["modification"],
                                     mod_data,
                                     target_data
@@ -212,6 +212,7 @@ with tabOverview:
 with tabSettings:
     with st.expander("Turn Tracker Visuals"):
         # Modify settings to change what is shown
+        resize_turn_tracker = 1
         show_turn_tracker = st.checkbox('Show Turn Tracker',value=True)
         if show_turn_tracker:
             show_health = st.checkbox('Show Health')
@@ -222,8 +223,8 @@ with tabSettings:
             show_attributes = st.checkbox('Show Additional Attributes')
     with st.expander("Audit Settings"):
         # What to Audit
-        data.audit_combat = st.checkbox('Audit Combat',value=True)
-        data.audit_changes = st.checkbox('Audit Turn Track Changes',value=True)
+        ss.audit_combat = st.checkbox('Audit Combat',value=True)
+        ss.audit_changes = st.checkbox('Audit Turn Track Changes',value=True)
         # Audit downloads/settings
         st.download_button(
             "Press to Download Default Action Configuration",
@@ -233,27 +234,28 @@ with tabSettings:
         )
         st.download_button(
             "Export Audit",
-            fx.convert_df(data.audit),
+            fx.convert_df(ss.audit),
             f"audit_{str(pd.Timestamp.today().date())}.csv",
             "text/csv"
         )
         st.download_button(
             "Export Every Action Result as its own Row",
-            fx.convert_df(fx.audit_every_action_df(data.audit)),
+            fx.convert_df(fx.audit_every_action_df(ss.audit)),
             f"audit_every_action_{str(pd.Timestamp.today().date())}.csv",
             "text/csv"
         )
         new_configuration = st.file_uploader("Upload Custom Action Configuration", accept_multiple_files=False)
         if new_configuration != None :
-            if st.button("Switch Configuration"): data.set_audit(new_configuration)
+            if st.button("Switch Configuration"): ss.set_audit(new_configuration)
         if st.button("Show Current Audit Trail"):
-            st.write(data.audit.set_index('turn'))
+            st.write(ss.audit.set_index('turn'))
         # enable_audit = st.checkbox('Enable Audit',value=True)
 with tabImportExport:
     st.header("Importing")
     with st.expander("Click to Open - Import"):
         if st.button("Load Example"):
-            data.turn_track = pd.concat([data.turn_track,fx.read_import("Test_Files&Notebooks\Party2.csv")])
+            ss.turn_track = pd.concat([ss.turn_track,fx.read_import("Test_Files&Notebooks\Party2.csv")])
+            resize_turn_tracker = 0
         st.download_button(
             "Download Example CSV",
             fx.convert_df(fx.read_import("Test_Files&Notebooks\Party2.csv")),
@@ -261,16 +263,17 @@ with tabImportExport:
             "text/csv"
         )
         if st.button("Clear Whole Turn Track",key='import_clear'):
-            data.turn_track = data.turn_track[data.turn_track['name'] == None]
+            ss.turn_track = ss.turn_track[ss.turn_track['name'] == None]
         uploaded_files = st.file_uploader("Select Villain's Turn CSV file(s)", accept_multiple_files=True)
         keep_imported_groups = st.checkbox("Keep Imported Groups? (If they exist)",value=True)
         if uploaded_files : # If a single file or more has been added
             if st.button("Add to Turn Track?"):
                 for uploaded_file in uploaded_files:
-                    data.turn_track = pd.concat([data.turn_track,fx.read_import(uploaded_file,import_groups=keep_imported_groups)])
-                if data.current_turn == None :
-                    data.current_turn = data.turn_track.iloc[0]['group']
+                    ss.turn_track = pd.concat([ss.turn_track,fx.read_import(uploaded_file,import_groups=keep_imported_groups)])
+                if ss.current_turn == None :
+                    ss.current_turn = ss.turn_track.iloc[0]['group']
                 uploaded_files = None
+                resize_turn_tracker = 0
     st.header("Exporting")
     with st.expander("Click to Open - Export"):
         col_export_all, col_export_team = st.columns(2)
@@ -281,18 +284,18 @@ with tabImportExport:
             st.write(f"File Export Name: {export_file}.")
             st.download_button(
                 "Press to Download Complete Turn Track",
-                fx.convert_df(data.turn_track),
+                fx.convert_df(ss.turn_track),
                 export_file,
                 "text/csv"
             )
     with col_export_team:
-        export_team = st.selectbox("Team to Export",options=fx.team_list(data.turn_track))
-        st.write(data.turn_track[data.turn_track["team"]==export_team])
+        export_team = st.selectbox("Team to Export",options=fx.team_list(ss.turn_track))
+        st.write(ss.turn_track[ss.turn_track["team"]==export_team])
         export_file_team = f"{export_team}_{export_date}.csv"
         st.write(f"File Export Name: {export_file_team}.")
         st.download_button(
             "Press to Download Specific Team",
-            fx.convert_df(data.turn_track[data.turn_track["team"]==export_team]),
+            fx.convert_df(ss.turn_track[ss.turn_track["team"]==export_team]),
             export_file_team,
             "text/csv"
         )
@@ -324,42 +327,42 @@ with tabModifications:
                 "team":newPerson_team,
                 "group":newPerson_group
             }
-            data.turn_track=data.turn_track.append(character,ignore_index=True)
-            if data.audit_changes : fx.add_audit(data.audit,data.turn_number,data.action_number,
+            ss.turn_track=ss.turn_track.append(character,ignore_index=True)
+            if ss.audit_changes : fx.add_audit(ss.audit,ss.turn_number,ss.action_number,
                 newPerson_name,
                 f"Entered the Turn Order\nHP:{newPerson_hp}, AC:{newPerson_ac}, init_bonus:{newPerson_b_init}, team:{newPerson_team}, group:{newPerson_group}")
     elif (selected_modification == "Remove Person/Team"):
-        selected_character = st.selectbox("Character to Remove",options=fx.character_list(data.turn_track))
+        selected_character = st.selectbox("Character to Remove",options=fx.character_list(ss.turn_track))
         if st.button("Remove Character"):
-            data.turn_track = data.turn_track[data.turn_track['name'] != selected_character]
-            if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+            ss.turn_track = ss.turn_track[ss.turn_track['name'] != selected_character]
+            if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                 selected_character,"Left the Turn Order")
-        selected_team = st.selectbox("Team to Remove",options=fx.team_list(data.turn_track))
+        selected_team = st.selectbox("Team to Remove",options=fx.team_list(ss.turn_track))
         if st.button("Remove All Characters on a Team"):
-            data.turn_track = data.turn_track[data.turn_track['team'] != selected_team]
-            if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+            ss.turn_track = ss.turn_track[ss.turn_track['team'] != selected_team]
+            if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                 f'The Team {selected_team}',"Left the Turn Order")
         if st.button("Clear Whole Turn Track"):
-            data.turn_track = data.turn_track[data.turn_track['name'] == None]
-            if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"Turn Track Cleared")
+            ss.turn_track = ss.turn_track[ss.turn_track['name'] == None]
+            if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"Turn Track Cleared")
     elif (selected_modification == "Change Initiatives"):
         col_init_random, col_init_sort = st.columns(2)
         with col_init_random:
             if st.button("Auto Reroll all Initiatives?"):
-                data.turn_track = fx.auto_initiative(data.turn_track)
-                if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"All Initiatives Randomized")
+                ss.turn_track = fx.auto_initiative(ss.turn_track)
+                if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"All Initiatives Randomized")
         with col_init_sort:
             if st.button("Sort Initiatives"):
-                data.turn_track = fx.sort_by_initiatives(data.turn_track)
-                data.turn_track = fx.individual_groups(data.turn_track)
-                if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"Sorted by Initiatives")
+                ss.turn_track = fx.sort_by_initiatives(ss.turn_track)
+                ss.turn_track = fx.individual_groups(ss.turn_track)
+                if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"Sorted by Initiatives")
         # select person, initiative field, and a button
         with st.expander("Manually Set/Change Initiatives"):
-            selected_character = st.selectbox("Character",options=fx.character_list(data.turn_track))
+            selected_character = st.selectbox("Character",options=fx.character_list(ss.turn_track))
             new_initiative = st.number_input("New Initiative",value = 1)
             if st.button("Set Initiative"):
-                data.turn_track.loc[(data.turn_track['name'] == selected_character,'initiative')]=new_initiative
-                if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+                ss.turn_track.loc[(ss.turn_track['name'] == selected_character,'initiative')]=new_initiative
+                if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                     selected_character,f"Initiative was set to {new_initiative}")
 ########## SideBar ##########
 selected_group_function = st.sidebar.selectbox(
@@ -371,78 +374,78 @@ if (selected_group_function == "Select Function"):
         pass
 if (selected_group_function == "Assign Groups"):
     if st.sidebar.button("Assign based on current initiative"):
-        data.turn_track = fx.initiative_based_group_assignment(data.turn_track)
-        if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"Groups created based on Team/Initiative")
+        ss.turn_track = fx.initiative_based_group_assignment(ss.turn_track)
+        if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"Groups created based on Team/Initiative")
     if st.sidebar.button("Assign based on new initiative"):
-        data.turn_track = fx.auto_initiative(data.turn_track)
-        data.turn_track = fx.initiative_based_group_assignment(data.turn_track)
-        if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"Groups created based on Team/New Initiative")
+        ss.turn_track = fx.auto_initiative(ss.turn_track)
+        ss.turn_track = fx.initiative_based_group_assignment(ss.turn_track)
+        if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"Groups created based on Team/New Initiative")
     if st.sidebar.button("Remove All Group Assignments"):
-        data.turn_track = fx.remove_group_assignments(data.turn_track)
-        if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"Groups Removed")
+        ss.turn_track = fx.remove_group_assignments(ss.turn_track)
+        if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"Groups Removed")
     if st.sidebar.button("Give Everyone their Own Group"):
-        data.turn_track = fx.individual_groups(data.turn_track)
-        if data.audit_changes : fx.add_audit_note(data.audit,data.turn_number,data.action_number,"Every character is in their own group")
+        ss.turn_track = fx.individual_groups(ss.turn_track)
+        if ss.audit_changes : fx.add_audit_note(ss.audit,ss.turn_number,ss.action_number,"Every character is in their own group")
 elif (selected_group_function == "Move Group"):
     group_to_move = st.sidebar.selectbox(
         "Select Group to Move",
-        options=fx.groups_list(data.turn_track)
+        options=fx.groups_list(ss.turn_track)
     )
     before_or_after = st.sidebar.select_slider("Before or After",["Before","After"])
     group_to_place = st.sidebar.selectbox(
         f"Choose which group {group_to_move} will move {before_or_after}",
-        options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=group_to_move]
+        options=fx.groups_list(ss.turn_track)[fx.groups_list(ss.turn_track)!=group_to_move]
     )
     if st.sidebar.button("Move"):
-        if data.current_turn != None : data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
-        data.turn_track = fx.move_group(data.turn_track,group_to_move,before_or_after,group_to_place)
-        if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+        if ss.current_turn != None : ss.current_turn = fx.next_turn(ss.turn_track,ss.current_turn)
+        ss.turn_track = fx.move_group(ss.turn_track,group_to_move,before_or_after,group_to_place)
+        if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
         group_to_move,f'Moved to {before_or_after} {group_to_place}')
 elif (selected_group_function == "Move Person to Other Group"):
     person_to_move = st.sidebar.selectbox(
         "Select Person to Move",
-        options=fx.character_list(data.turn_track)
+        options=fx.character_list(ss.turn_track)
     )
     if st.sidebar.checkbox("Move to Existing Group?",value=True):
         destination_group = st.sidebar.selectbox(
             "Group to Add Character to",
-            options=fx.groups_list(data.turn_track)
+            options=fx.groups_list(ss.turn_track)
         )
         if st.sidebar.button("Move Character"):
-            data.turn_track = fx.move_character(data.turn_track, person_to_move, destination_group)
-            if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+            ss.turn_track = fx.move_character(ss.turn_track, person_to_move, destination_group)
+            if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                 person_to_move,f'Added to {destination_group}')
     else:
         destination_group = st.sidebar.text_input("Group to Add Character to",value="New Group")
         if st.sidebar.button("Move Character to New Group"):
-            data.turn_track = fx.move_character_to_new_group(data.turn_track,person_to_move,destination_group)
-            if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+            ss.turn_track = fx.move_character_to_new_group(ss.turn_track,person_to_move,destination_group)
+            if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                 person_to_move,f'Added to new group: {destination_group}')
 elif (selected_group_function == "Merge Groups"):
     merge_group_1 = st.sidebar.selectbox(
         "Select Group 1 to Merge",
-        options=fx.groups_list(data.turn_track)
+        options=fx.groups_list(ss.turn_track)
     )
     merge_group_2 = st.sidebar.selectbox(
         "Select Group 2 to Merge",
-        options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=merge_group_1]
+        options=fx.groups_list(ss.turn_track)[fx.groups_list(ss.turn_track)!=merge_group_1]
     )
     merged_name = st.sidebar.text_input("New Name",value=f"{merge_group_1} and {merge_group_2}")
     if st.sidebar.button("Merge"):
-        if data.current_turn != None : data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
-        data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
-        data.turn_track.replace(merge_group_2,merged_name,inplace=True)
-        if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+        if ss.current_turn != None : ss.current_turn = fx.next_turn(ss.turn_track,ss.current_turn)
+        ss.turn_track = fx.merge_groups(ss.turn_track,merge_group_1,merge_group_2,merged_name)
+        ss.turn_track.replace(merge_group_2,merged_name,inplace=True)
+        if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                 f'{merge_group_1}, {merge_group_2}',f'Merged. New Name: {merged_name}')
 elif (selected_group_function == "Split Group"):
     group_to_split = st.sidebar.selectbox(
         "Select Group to Split",
-        options=fx.multi_person_groups_list(data.turn_track)
+        options=fx.multi_person_groups_list(ss.turn_track)
     )
     if(group_to_split!=None):
         group_to_split_1st = st.sidebar.text_input("First Half Name",value=f"{group_to_split} 1")
         group_to_split_2nd = st.sidebar.text_input("Second Half Name",value=f"{group_to_split} 2")
-        group_to_split_df = fx.df_match_slice(data.turn_track,"group",group_to_split)
+        group_to_split_df = fx.df_match_slice(ss.turn_track,"group",group_to_split)
         st.sidebar.write("Selected Group:")
         st.sidebar.write(group_to_split_df)
         split_decicions = []
@@ -450,21 +453,21 @@ elif (selected_group_function == "Split Group"):
         for member in group_to_split_df['name']:
             split_decicions.append(st.sidebar.select_slider(member,options=[group_to_split_1st,group_to_split_2nd]))
         if st.sidebar.button("Split") :
-            data.turn_track = fx.df_set_slice(data.turn_track,"group",group_to_split,split_decicions)
-            if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+            ss.turn_track = fx.df_set_slice(ss.turn_track,"group",group_to_split,split_decicions)
+            if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                 group_to_split,f'Split. New Groups: {group_to_split_1st} and {group_to_split_2nd}')
 elif (selected_group_function == "Change Group Name"):
     # select group, new name fields and a button which uses pd's replace
-    group_to_rename = st.sidebar.selectbox("Select Group to Rename",options=fx.groups_list(data.turn_track))
+    group_to_rename = st.sidebar.selectbox("Select Group to Rename",options=fx.groups_list(ss.turn_track))
     new_name = st.sidebar.text_input("New Name")
     if st.sidebar.button("Rename Group"):
-        data.turn_track.replace(group_to_rename,new_name,inplace=True)
-        if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
+        ss.turn_track.replace(group_to_rename,new_name,inplace=True)
+        if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
             group_to_rename,f'Renamed. New Name: {new_name}')
 
-if show_turn_tracker :
+if resize_turn_tracker and show_turn_tracker :
     st.header("Turn Track")
-    st.write(data.turn_track[data.turn_track.columns[[
+    st.write(ss.turn_track[ss.turn_track.columns[[
         True, # Always show name
         show_health,
         show_ac,
@@ -474,3 +477,5 @@ if show_turn_tracker :
         show_group,
         show_attributes
     ]]].set_index('name'))
+elif resize_turn_tracker == 0 :
+    resize_turn_tracker = 1
