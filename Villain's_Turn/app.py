@@ -84,7 +84,7 @@ with tabOverview:
         
         # Combat Interface
         # Would be nice to do this with a form but forms stop the internal widgets from being modified
-        if st.checkbox("Show Combat Entry - Toggle to clear values",value=True):
+        if st.checkbox("Show Combat Entry - Toggle to clear values"):
             st.markdown("---")
             col_actors, col_action, col_target,col_execute = st.columns(4)
             # Active Character
@@ -134,7 +134,7 @@ with tabOverview:
                 if st.button("Submit Action"):
                     # creates an additional log, submits action and adds to audit
                     additional_log = ""
-                    data.turn_track, additional_log, damage, healing = fx.submit_action(data.turn_track,data.results_data,additional_log)
+                    data.turn_track, data.current_turn, additional_log, damage, healing = fx.submit_action(data.turn_track,data.current_turn,data.results_data,additional_log)
                     if data.audit_combat : fx.add_audit(data.audit,
                         data.turn_number,data.action_number, # turn, action_number
                         active_characters, # source
@@ -198,7 +198,7 @@ with tabOverview:
                                         action_split_decicions.append(st.select_slider(member,
                                             options=[action_group_to_split_1st,action_group_to_split_2nd],key=f'target_{member}_{result}'
                                         ))
-                                target_data = [action_group_to_split,action_group_to_split_1st,action_split_decicions]
+                                target_data = [action_group_to_split,action_group_to_split_1st,action_split_decicions,action_group_to_split_2nd]
                             elif (meta["target"] == 'target_group'):
                                 # Target group handling
                                 target_data = st.selectbox("Select Group",options=fx.groups_list(data.turn_track),key=f'target_group_{result}')
@@ -220,7 +220,7 @@ with tabSettings:
             show_team = st.checkbox('Show Teams',value=True)
             show_group = st.checkbox('Show Combat Groups',value=True)
             show_attributes = st.checkbox('Show Additional Attributes')
-    with st.expander("Audit Settings"): #TODO Expand on settings/Export, Damage/healing only download without lists
+    with st.expander("Audit Settings"):
         # What to Audit
         data.audit_combat = st.checkbox('Audit Combat',value=True)
         data.audit_changes = st.checkbox('Audit Turn Track Changes',value=True)
@@ -394,7 +394,7 @@ elif (selected_group_function == "Move Group"):
         options=fx.groups_list(data.turn_track)[fx.groups_list(data.turn_track)!=group_to_move]
     )
     if st.sidebar.button("Move"):
-        data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
+        if data.current_turn != None : data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
         data.turn_track = fx.move_group(data.turn_track,group_to_move,before_or_after,group_to_place)
         if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,
         group_to_move,f'Moved to {before_or_after} {group_to_place}')
@@ -403,8 +403,7 @@ elif (selected_group_function == "Move Person to Other Group"):
         "Select Person to Move",
         options=fx.character_list(data.turn_track)
     )
-    use_existing_group = st.sidebar.checkbox("Move to Existing Group?",value=True)
-    if use_existing_group:
+    if st.sidebar.checkbox("Move to Existing Group?",value=True):
         destination_group = st.sidebar.selectbox(
             "Group to Add Character to",
             options=fx.groups_list(data.turn_track)
@@ -430,7 +429,7 @@ elif (selected_group_function == "Merge Groups"):
     )
     merged_name = st.sidebar.text_input("New Name",value=f"{merge_group_1} and {merge_group_2}")
     if st.sidebar.button("Merge"):
-        data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
+        if data.current_turn != None : data.current_turn = fx.next_turn(data.turn_track,data.current_turn)
         data.turn_track = fx.merge_groups(data.turn_track,merge_group_1,merge_group_2,merged_name)
         data.turn_track.replace(merge_group_2,merged_name,inplace=True)
         if data.audit_changes : fx.add_audit_character_note(data.audit,data.turn_number,data.action_number,

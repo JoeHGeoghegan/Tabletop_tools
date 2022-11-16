@@ -218,7 +218,7 @@ def meta_to_dict(audit_meta,key='Results'):
 def has_meta(result,meta_lookup:dict):
     return result in meta_lookup.keys()
 
-def submit_action(turn_track,results_data,additional_log):
+def submit_action(turn_track,current_turn,results_data,additional_log):
     damage = []
     healing = []
     for result in results_data:
@@ -226,11 +226,14 @@ def submit_action(turn_track,results_data,additional_log):
         elif result[0] in ['attribute','condition','info'] :
             if additional_log != "" : additional_log += '\n'
             additional_log += add_additional_info(result)
-        elif result[0] == 'disrupt' : turn_track = disrupt(turn_track,result[1],result[2])
-        
+        elif result[0] == 'disrupt' :
+            if len(turn_track[turn_track['group']==current_turn]) == 1 : 
+                current_turn = next_turn(turn_track,current_turn)
+            turn_track = disrupt(turn_track,result[1],result[2])
+
         if result[0] == '-' : damage.append([result[1],result[2]])
         elif result[0] == '+' : healing.append([result[1],result[2]])
-    return turn_track, additional_log, damage, healing
+    return turn_track, current_turn, additional_log, damage, healing
 
 def adjust_health(turn_track,is_damage,numbers,target):
     health_mod = 1
@@ -243,26 +246,23 @@ def add_additional_info(result):
     return f'{result[0]} -> {result[2]} : {result[1]}'
 
 def disrupt(turn_track,disruptor,disrupted_info):
+    print(disrupted_info)
     group_to_split = disrupted_info[0]
     group_name_1 = disrupted_info[1]
     split_decicions = disrupted_info[2]
+    group_name_2 = disrupted_info[3]
     turn_track = df_set_slice(turn_track,"group",group_to_split,split_decicions)
-    turn_track = move_character_to_new_group(turn_track, disruptor, disruptor)
+    if not person_is_alone(turn_track,disruptor) :
+        turn_track = move_character_to_new_group(turn_track, disruptor, disruptor)
+    else :
+        turn_track.loc[turn_track['name']==disruptor,'group']=disruptor
     turn_track = move_group(turn_track,disruptor,"After",group_name_1)
+    turn_track = move_group(turn_track,group_name_2,"After",disruptor)
     return turn_track
 
 def split_column_list(df,column_name,new_axis_names):
     df[new_axis_names] = pd.DataFrame(df[column_name].to_list(),index=df.index)
     df.drop(columns=column_name,inplace=True)
-
-def col_list_every_action(df,column_name,drop_cols):
-    df_split = df.explode(column_name)
-    df_split.dropna(inplace=True)
-    df_split.drop(columns=drop_cols,inplace=True)
-    split_column_list(df_split,column_name,['sources','target'])
-    df_split = df_split.explode('sources')
-    split_column_list(df_split,'sources',['source',column_name])
-    return df_split
 
 def col_str_every_action(df,column_name,drop_cols):
     df_split = df.copy()
@@ -273,12 +273,28 @@ def col_str_every_action(df,column_name,drop_cols):
     df_split.drop(df_split[df_split[column_name]==''].index,inplace=True)
     return df_split
 
+def split_column_list(df,column_name,new_axis_names):
+    df_split = df.copy()
+    df_split.drop(df[df[column_name].isin(["",[]])].index,inplace=True)
+    df_split[new_axis_names] = pd.DataFrame(df_split[column_name].to_list(),columns=new_axis_names,index=df_split.index)
+    df_split.drop(columns=column_name,inplace=True)
+    return df_split
+
+def col_list_every_action(df,column_name,drop_cols):
+    df_split = df.explode(column_name)
+    df_split.dropna(inplace=True)
+    df_split.drop(columns=drop_cols,inplace=True)
+    df_split = split_column_list(df_split,column_name,['sources','target'])
+    df_split = df_split.explode('sources')
+    df_split = split_column_list(df_split,'sources',['source',column_name])
+    return df_split
+
 def audit_every_action_df(audit:pd.DataFrame):
     action_df = audit.copy()[["turn","action_number","damage","healing","additional_effects"]]
     concat_list = []
-    if not all(action_df['damage'].eq('')) : concat_list.append(col_list_every_action(action_df,'damage',['healing','additional_effects']))
-    if not all(action_df['healing'].eq('')) : concat_list.append(col_list_every_action(action_df,'healing',['damage','additional_effects']))
-    if not all(action_df['additional_effects'].eq('')) : concat_list.append(col_str_every_action(action_df,'additional_effects',['damage','healing']))
+    if not all(action_df['damage'].isin(["",[]])) : concat_list.append(col_list_every_action(action_df,'damage',['healing','additional_effects']))
+    if not all(action_df['healing'].isin(["",[]])) : concat_list.append(col_list_every_action(action_df,'healing',['damage','additional_effects']))
+    if not all(action_df['additional_effects'].isin(["",[]])) : concat_list.append(col_str_every_action(action_df,'additional_effects',['damage','healing']))
     
     if len(concat_list) : return pd.concat(concat_list,ignore_index=True).sort_values(by=["turn","action_number"])
     return pd.DataFrame(columns=['turn','action_number','source','damage','healing','additional_effects'])
