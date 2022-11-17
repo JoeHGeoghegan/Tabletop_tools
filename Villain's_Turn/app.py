@@ -1,6 +1,7 @@
 # Imports
 import streamlit as st
 from streamlit import session_state as ss
+from pathlib import Path
 import pandas as pd
 from dataclasses import dataclass
 from streamlit_autorefresh import st_autorefresh
@@ -48,7 +49,7 @@ with col_refresh:
     # st.write(f'Runtime: {int(ss.count/60)} minutes {ss.count%60} seconds')
     st.write(f'Turn #: {ss.turn_number}')
     st.write(f'Action #: {ss.action_number}')
-tabOverview, tabModifications, tabSettings, tabImportExport = st.tabs(["Overview", "Modifications", "Settings", "Import/Export"])
+tabOverview, tabModifications, tabSettings, tabImportExport, tabRuleChange = st.tabs(["Overview", "Modifications", "Settings", "Import/Export","Rule Changes"])
 with tabOverview:
     # Checks to ensure data is able to be displayed
     if len(ss.turn_track) == 0:
@@ -364,6 +365,10 @@ with tabModifications:
                 ss.turn_track.loc[(ss.turn_track['name'] == selected_character,'initiative')]=new_initiative
                 if ss.audit_changes : fx.add_audit_character_note(ss.audit,ss.turn_number,ss.action_number,
                     selected_character,f"Initiative was set to {new_initiative}")
+with tabRuleChange:
+    with open('data\RuleChanges.md', 'r') as f:
+        rules = f.read()
+    st.markdown(rules, unsafe_allow_html=True)
 ########## SideBar ##########
 selected_group_function = st.sidebar.selectbox(
     "Select Group Functions",
